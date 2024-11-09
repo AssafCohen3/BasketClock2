@@ -4,41 +4,54 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.material.TopAppBar
-import androidx.compose.material3.Card
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.assaf.basketclock.ui.theme.BackgroundDark
 import com.assaf.basketclock.ui.theme.BasketClockTheme
-import kotlinx.serialization.json.Json
-import okhttp3.Call
-import okhttp3.Callback
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.Response
-import java.io.IOException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
@@ -49,16 +62,32 @@ class MainActivity : ComponentActivity() {
             BasketClockTheme {
                 Scaffold(
                     topBar = {
-                        TopAppBar(
-                            contentPadding = PaddingValues(horizontal = 16.dp),
-                            backgroundColor = Color(0xFFff8316),
-                            elevation = 8.dp,
-
-                        ){
-                            Text(
-                                text = "Basket Clock",
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold,
+                        Surface(shadowElevation = 8.dp) {
+                            TopAppBar(
+                                modifier = Modifier
+                                    .background(BackgroundDark),
+                                title = {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ){
+                                        Image(
+                                            painter = painterResource(id = R.drawable.app_logo),
+                                            contentDescription = "App Icon",
+                                            modifier = Modifier
+                                                .size(24.dp)
+                                                .clip(CircleShape)
+                                        )
+                                        Spacer(
+                                            modifier = Modifier.width(8.dp)
+                                        )
+                                        Text(
+                                            text = "Basket Clock",
+                                            color = Color.White,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 12.sp
+                                        )
+                                    }
+                                }
                             )
                         }
                     }
@@ -82,80 +111,106 @@ fun LoadingScreen() {
 }
 
 
-@Composable
-fun CardItem(text: String){
-    Card(
-        modifier = Modifier
-            .padding(10.dp)
-            .fillMaxWidth()
-    ){
-        Text(text = text, modifier = Modifier.padding(16.dp))
-    }
-}
-
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun HorizontalCardList(innerPadding: PaddingValues) {
-    var gameCards by remember { mutableStateOf<List<GameData>>(emptyList()) }
+    var calendarResponseWithTodayDate by remember { mutableStateOf<CalendarResponseWithTodayDate?>(null) }
     var isLoading by remember { mutableStateOf(true) }
 
     LaunchedEffect(Unit) {
         try {
-            val client = OkHttpClient()
-            val request = Request.Builder()
-                .url("https://cdn.nba.com/static/json/liveData/scoreboard/todaysScoreboard_00.json")
-                .build()
-
-            client.newCall(request).enqueue(object : Callback {
-                override fun onFailure(call: Call, e: IOException) {
-                    // Handle error
-                    isLoading = false
-                }
-
-                override fun onResponse(call: Call, response: Response) {
-                    response.use {
-                        if (!response.isSuccessful) throw IOException("Unexpected code $response")
-
-                        val responseBody = response.body?.string()
-                        // Parse JSON response and update gameCards
-                        val parsedResponse = Json { ignoreUnknownKeys = true }.decodeFromString<ScoreboardResponse>(responseBody as String)
-                        gameCards = parsedResponse.scoreboard.games
-                        isLoading = false
-                    }
-                }
-            })
-        } catch (e: Exception) {
+            val calendarResponse = fetchCompleteGamesData()
+            calendarResponseWithTodayDate = calendarResponse
+            isLoading = false
+        } catch (_: Exception) {
             // Handle error
             isLoading = false
         }
     }
 
-
-    val pagerState = rememberPagerState(pageCount = {
-        1
-    })
-
     if(isLoading){
         LoadingScreen()
     }
-    else if(gameCards.size == 0){
-        Text("No Games Found :(")
-    }
-    else{
-        HorizontalPager(
-            state = pagerState,
+    calendarResponseWithTodayDate?.let { response ->
+        val gamesByDate = response.leagueSchedule.gameDates.associateBy { gameDate ->
+            gameDate.gameDate
+        }
+        val initialPageIndex = gamesByDate.keys.indexOf(response.todayDate)
+
+        val pagerState = rememberPagerState(
+            pageCount = { gamesByDate.size },
+            initialPage = initialPageIndex
+        )
+
+        val coroutineScope = rememberCoroutineScope()
+
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(Color(0xFFEEEAEA))
-        ) { page ->
-            LazyColumn(
+        ){
+            DateIndicator(
+                pagerState,
+                response,
+                coroutineScope,
+                initialPageIndex
+            )
+
+            HorizontalPager(
+                state = pagerState,
                 modifier = Modifier
                     .fillMaxSize()
-            ) {
-                items(gameCards.sortedBy { gameData -> gameData.gameTimeUTC }) { gameCard ->
-                    GameCard(gameCard)
+            ) { page ->
+
+                val gamesForDate = response.leagueSchedule.gameDates[page].games
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                ) {
+                    items(gamesForDate.sortedBy { gameData -> gameData.realGameDateTimeUTC }) { gameCard ->
+                        GameCard(gameCard)
+                    }
                 }
+            }
+        }
+    }
+}
+
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun DateIndicator(pagerState: PagerState, calendar: CalendarResponseWithTodayDate,
+                  coroutineScope: CoroutineScope, todayIndex: Int){
+    TabRow(
+        selectedTabIndex = pagerState.currentPage,
+        modifier = Modifier
+            .padding(16.dp)
+            .fillMaxWidth()
+            .height(60.dp)
+        ,
+        indicator = { p -> {}},
+        divider = {}
+    ) {
+        // Add tabs for each date
+        calendar.leagueSchedule.gameDates.forEachIndexed { index, currentGameDate ->
+            if(index >= pagerState.currentPage - 1 && index <= pagerState.currentPage + 1){
+                Tab(
+                    modifier = if (index == pagerState.currentPage)
+                        Modifier.background(Color(0x2C8192E5)) else Modifier,
+                    selected = index == pagerState.currentPage,
+                    onClick = {
+                        coroutineScope.launch() {
+                            pagerState.animateScrollToPage(index)
+                        }
+                    },
+                    text = {
+                        var currentDateString = SimpleDateFormat("MM/dd", Locale.getDefault()).format(currentGameDate.gameDate)
+                        if (index == todayIndex){
+                            currentDateString = "${currentDateString}\nToday"
+                        }
+                        Text(currentDateString, color = Color.White)
+                    }
+                )
             }
         }
     }

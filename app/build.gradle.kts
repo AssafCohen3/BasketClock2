@@ -50,8 +50,6 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
-//    implementation("androidx.viewpager2:viewpager2:1.1.0")
-//    implementation("androidx.recyclerview:recyclerview:1.3.0")
     implementation(libs.coil.compose) // Or latest version
     implementation("io.coil-kt:coil-svg:2.2.2")
     implementation("androidx.compose.ui:ui:1.3.0") // Or latest version

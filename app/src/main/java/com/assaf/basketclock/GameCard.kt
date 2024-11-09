@@ -15,7 +15,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -23,8 +22,8 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.decode.SvgDecoder
 import coil.request.ImageRequest
+import com.assaf.basketclock.ui.theme.CardBackground
 import java.time.ZoneId
-import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 
 
@@ -35,7 +34,7 @@ fun GameCard(gameData: GameData) {
             .fillMaxWidth()
             .padding(8.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF0A2977),
+            containerColor = CardBackground,
         )
     ) {
         Row(
@@ -66,11 +65,9 @@ fun GameCard(gameData: GameData) {
                     }
                     else -> {
                         Column {
-                            val gameDateTimeStr = gameData.gameDateTimeUTC ?: gameData.gameTimeUTC
-                            val gameDateTime = ZonedDateTime.parse(gameDateTimeStr)
-                            val zonedDatetime = gameDateTime.withZoneSameInstant(ZoneId.systemDefault())
+                            val zonedDatetime = gameData.realGameDateTimeUTC.withZoneSameInstant(ZoneId.systemDefault())
                             Text(text = DateTimeFormatter.ofPattern("HH:mm").format(zonedDatetime), fontWeight = FontWeight.Bold)
-                            Text(text = DateTimeFormatter.ofPattern("MM:dd").format(zonedDatetime))
+                            Text(text = DateTimeFormatter.ofPattern("dd/MM").format(zonedDatetime))
                         }
                     }
                 }
