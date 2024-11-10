@@ -1,5 +1,6 @@
 package com.assaf.basketclock
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -15,13 +16,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
-import coil.decode.SvgDecoder
-import coil.request.ImageRequest
 import com.assaf.basketclock.ui.theme.CardBackground
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -85,31 +82,22 @@ fun GameCard(gameData: GameData) {
 @Composable
 fun TeamColumn(teamData: TeamGameData, gameStatus: Int, scoreBefore: Boolean){
     Row(
-//        modifier = Modifier.height(IntrinsicSize.Min),
         verticalAlignment = Alignment.CenterVertically
     ) {
         if(scoreBefore){
             TeamColumnScore(teamData, gameStatus)
         }
 
-        // Team Details Column
         Column(
             modifier = Modifier.padding(start = 8.dp, end = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-//            Image(
-//                painter = painterResource(id = R.drawable.logo_1610612737),
-//                contentDescription = "Team Logo",
-//                modifier = Modifier.size(50.dp)
-//            )
-            AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current)
-                    .data("https://cdn.nba.com/logos/nba/${teamData.teamId}/global/L/logo.svg")
-                    .decoderFactory(SvgDecoder.Factory())
-                    .build(),
+            Image(
+                painter = painterResource(
+                    id = LOGOS_RESOURCES.getOrDefault(teamData.teamId, R.drawable.placeholder_logo)
+                ),
                 contentDescription = "Team Logo",
-                modifier = Modifier.size(50.dp),
-                placeholder = painterResource(id = R.drawable.placeholder_logo)
+                modifier = Modifier.size(50.dp)
             )
             Text(text = teamData.teamTricode, fontWeight = FontWeight.Bold)
             Text(text = "${teamData.wins} - ${teamData.losses}")
