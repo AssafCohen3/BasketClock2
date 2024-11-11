@@ -200,7 +200,7 @@ fun DateIndicator(pagerState: PagerState, calendar: CalendarResponseWithTodayDat
                         }
                     },
                     text = {
-                        var currentDateString = SimpleDateFormat("MM/dd", Locale.getDefault()).format(currentGameDate.gameDate)
+                        var currentDateString = SimpleDateFormat("dd/MM", Locale.getDefault()).format(currentGameDate.gameDate)
                         if (index == todayIndex){
                             currentDateString = "${currentDateString}\nToday"
                         }
