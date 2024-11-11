@@ -76,7 +76,7 @@ class MainActivity : ComponentActivity() {
                                             painter = painterResource(id = R.drawable.app_logo),
                                             contentDescription = "App Icon",
                                             modifier = Modifier
-                                                .size(24.dp)
+                                                .size(30.dp)
                                                 .clip(CircleShape)
                                         )
                                         Spacer(
@@ -86,7 +86,7 @@ class MainActivity : ComponentActivity() {
                                             text = "Basket Clock",
                                             color = Color.White,
                                             fontWeight = FontWeight.Bold,
-                                            fontSize = 12.sp
+                                            fontSize = 14.sp
                                         )
                                     }
                                 }
@@ -242,12 +242,15 @@ fun GamesPager(response: CalendarResponseWithTodayDate, coroutineScope: Coroutin
         ) { page ->
 
             val gamesForDate = response.leagueSchedule.gameDates[page].games
+            val sortedGames = gamesForDate.sortedBy { gameData -> gameData.realGameDateTimeUTC }
+            val gamesWithExpandStates = sortedGames.map { game -> game to remember { mutableStateOf(false) } }
+
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
             ) {
-                items(gamesForDate.sortedBy { gameData -> gameData.realGameDateTimeUTC }) { gameCard ->
-                    GameCard(gameCard)
+                items(gamesWithExpandStates) { (gameData, gameCardState) ->
+                    GameCard(gameData, gameCardState)
                 }
             }
         }
