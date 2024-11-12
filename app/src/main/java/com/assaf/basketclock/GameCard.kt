@@ -25,12 +25,15 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import com.assaf.basketclock.ui.theme.CardBackground
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -38,6 +41,9 @@ import java.time.format.DateTimeFormatter
 
 @Composable
 fun GameCard(gameData: GameData, isExpandedState: MutableState<Boolean>) {
+
+    val showDialogState = remember { mutableStateOf(gameData.homeTeam.teamName == "Celtics") }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -57,9 +63,18 @@ fun GameCard(gameData: GameData, isExpandedState: MutableState<Boolean>) {
             ) {
                 ConditionsSection()
             }
-            ExpandSection(isExpandedState)
+            ExpandSection(isExpandedState, showDialogState)
         }
     }
+
+    if (showDialogState.value){
+        Dialog(
+            onDismissRequest = {showDialogState.value = false}
+        ) {
+            ConditionsDialog(showDialogState)
+        }
+    }
+
 }
 
 
@@ -152,7 +167,7 @@ fun TeamColumnScore(teamData: TeamGameData, gameStatus: Int){
 
 
 @Composable
-fun ExpandSection(isExpandedState: MutableState<Boolean>){
+fun ExpandSection(isExpandedState: MutableState<Boolean>, showDialogState: MutableState<Boolean>){
     Row(
         Modifier
             .height(IntrinsicSize.Min)
@@ -170,7 +185,7 @@ fun ExpandSection(isExpandedState: MutableState<Boolean>){
         }
 
         if (isExpandedState.value){
-            IconButton(onClick = {}) {
+            IconButton(onClick = { showDialogState.value = true }) {
                 Icon(
                     imageVector = Icons.Filled.Add,
                     contentDescription = "Add Condition"
