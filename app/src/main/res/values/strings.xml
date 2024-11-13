@@ -1,3 +1,6 @@
 <resources>
     <string name="app_name">BasketClock</string>
+    <string name="time_condition_help">Select a range of times in the game in which the condition will be active.\n\nSelecting OT ignores the minutes field and means \"anytime in Overtime\"</string>
+    <string name="difference_condition_help">Select the desired difference threshold</string>
+    <string name="leader_condition_help">Select the desired leading team</string>
 </resources>

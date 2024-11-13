@@ -54,6 +54,7 @@ dependencies {
     implementation("io.coil-kt:coil-svg:2.2.2")
     implementation("androidx.compose.ui:ui:1.3.0") // Or latest version
     implementation("androidx.compose.material:material:1.3.0")
+    implementation("com.chargemap.compose:numberpicker:1.0.3")
     implementation(libs.okhttp) // Or latest version
     implementation(libs.kotlinx.serialization.json)
     testImplementation(libs.junit)

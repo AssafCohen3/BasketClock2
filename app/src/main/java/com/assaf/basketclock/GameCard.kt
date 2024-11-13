@@ -42,7 +42,7 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun GameCard(gameData: GameData, isExpandedState: MutableState<Boolean>) {
 
-    val showDialogState = remember { mutableStateOf(gameData.homeTeam.teamName == "Celtics") }
+    val showDialogState = remember { mutableStateOf(false) }
 
     Card(
         modifier = Modifier
@@ -71,7 +71,7 @@ fun GameCard(gameData: GameData, isExpandedState: MutableState<Boolean>) {
         Dialog(
             onDismissRequest = {showDialogState.value = false}
         ) {
-            ConditionsDialog(showDialogState)
+            ConditionsDialog(showDialogState, gameData)
         }
     }
 
