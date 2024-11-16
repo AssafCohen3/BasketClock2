@@ -1,5 +1,6 @@
-package com.assaf.basketclock
+package com.assaf.basketclock.conditions
 
+import android.widget.Toast
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
@@ -16,8 +17,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ElevatedButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -35,26 +38,40 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.assaf.basketclock.conditions.DifferenceConditionScreen
-import com.assaf.basketclock.conditions.LeaderConditionScreen
-import com.assaf.basketclock.conditions.TimeConditionScreen
+import com.assaf.basketclock.GameData
+import com.assaf.basketclock.R
 import com.assaf.basketclock.ui.theme.BackgroundDark
+import com.assaf.basketclock.ui.theme.CardBackground
 import kotlinx.coroutines.launch
 
-enum class SelectedConditionType {
+
+class ConditionValidationException(message: String) : Exception(message)
+
+
+enum class ConditionType {
     NONE, TIME, DIFFERENCE, LEADER
 }
 
 
 @Composable
 fun ConditionsDialog(isDialogOpen: MutableState<Boolean>, gameData: GameData){
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+
+    val saveCondition = { conditionData: Map<String, Any>, conditionType: ConditionType ->
+        scope.launch {
+            Toast.makeText(context, "Type: ${conditionType.name} Data: $conditionData", Toast.LENGTH_LONG).show()
+        }
+        isDialogOpen.value = false
+    }
 
     val selectedConditionTypeState = remember {
-        mutableStateOf<SelectedConditionType>(SelectedConditionType.NONE)
+        mutableStateOf<ConditionType>(ConditionType.NONE)
     }
 
     Card(
@@ -68,17 +85,17 @@ fun ConditionsDialog(isDialogOpen: MutableState<Boolean>, gameData: GameData){
         )
     ) {
         when(selectedConditionTypeState.value){
-            SelectedConditionType.NONE -> {
+            ConditionType.NONE -> {
                 ConditionTypeSelectionScreen(selectedConditionTypeState)
             }
-            SelectedConditionType.TIME -> {
-                TimeConditionScreen(selectedConditionTypeState)
+            ConditionType.TIME -> {
+                TimeConditionScreen(selectedConditionTypeState, gameData, saveCondition)
             }
-            SelectedConditionType.DIFFERENCE -> {
-                DifferenceConditionScreen(selectedConditionTypeState)
+            ConditionType.DIFFERENCE -> {
+                DifferenceConditionScreen(selectedConditionTypeState, saveCondition)
             }
-            SelectedConditionType.LEADER -> {
-                LeaderConditionScreen(selectedConditionTypeState, gameData)
+            ConditionType.LEADER -> {
+                LeaderConditionScreen(selectedConditionTypeState, gameData, saveCondition)
             }
             else -> {
                 ConditionTypeSelectionScreen(selectedConditionTypeState)
@@ -88,7 +105,7 @@ fun ConditionsDialog(isDialogOpen: MutableState<Boolean>, gameData: GameData){
 }
 
 @Composable
-fun ConditionTypeSelectionScreen(selectedConditionTypeState: MutableState<SelectedConditionType>){
+fun ConditionTypeSelectionScreen(selectedConditionTypeState: MutableState<ConditionType>){
     Column(
         Modifier
             .fillMaxWidth()
@@ -101,7 +118,7 @@ fun ConditionTypeSelectionScreen(selectedConditionTypeState: MutableState<Select
         Text("Select a Condition Type", color = Color.White, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(16.dp))
         ConditionCard(
-            SelectedConditionType.TIME,
+            ConditionType.TIME,
             Color.White,
             "Time",
             Color(0xFF024A73),
@@ -110,7 +127,7 @@ fun ConditionTypeSelectionScreen(selectedConditionTypeState: MutableState<Select
         )
         Spacer(Modifier.height(16.dp))
         ConditionCard(
-            SelectedConditionType.DIFFERENCE,
+            ConditionType.DIFFERENCE,
             Color(0xFFFFF100),
             "Difference",
             Color(0xFF2371B5),
@@ -119,7 +136,7 @@ fun ConditionTypeSelectionScreen(selectedConditionTypeState: MutableState<Select
         )
         Spacer(Modifier.height(16.dp))
         ConditionCard(
-            SelectedConditionType.LEADER,
+            ConditionType.LEADER,
             Color(0xFFD90106),
             "Leader",
             Color(0xFFffe600),
@@ -132,12 +149,12 @@ fun ConditionTypeSelectionScreen(selectedConditionTypeState: MutableState<Select
 
 @Composable
 fun ColumnScope.ConditionCard(
-    conditionType: SelectedConditionType,
+    conditionType: ConditionType,
     background: Color,
     text: String,
     textColor: Color,
     conditionIcon: Int,
-    selectedConditionTypeState: MutableState<SelectedConditionType>
+    selectedConditionTypeState: MutableState<ConditionType>
 ){
     Card(
         Modifier
@@ -177,7 +194,7 @@ fun ColumnScope.ConditionCard(
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ConditionScreenTitle(
-    selectedConditionTypeState: MutableState<SelectedConditionType>,
+    selectedConditionTypeState: MutableState<ConditionType>,
     text: String,
     helpText: String
 ){
@@ -197,7 +214,7 @@ fun ConditionScreenTitle(
         ) {
             IconButton(
                 onClick = {
-                    selectedConditionTypeState.value = SelectedConditionType.NONE
+                    selectedConditionTypeState.value = ConditionType.NONE
                 },
             ) {
                 Icon(
@@ -231,5 +248,70 @@ fun ConditionScreenTitle(
         }
         Spacer(Modifier.height(8.dp))
         HorizontalDivider(thickness = 0.3.dp, color = Color.DarkGray)
+    }
+}
+
+
+@Composable
+fun BaseConditionScreen(
+    selectedConditionTypeState: MutableState<ConditionType>,
+    titleText: String,
+    conditionHelpResourceId: Int,
+    content: @Composable (() -> Unit),
+    generateConditionData: () -> Map<String, Any>,
+    saveCondition: (Map<String, Any>, ConditionType) -> Unit
+){
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .fillMaxHeight()
+            .padding(16.dp)
+        ,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        ConditionScreenTitle(
+            selectedConditionTypeState,
+            titleText,
+            LocalContext.current.getString(conditionHelpResourceId)
+        )
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .fillMaxHeight()
+                .weight(1f)
+            ,
+            verticalArrangement = Arrangement.SpaceAround,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            content()
+        }
+        Spacer(Modifier.height(12.dp))
+        ElevatedButton(
+            colors = ButtonDefaults.buttonColors(
+                containerColor = CardBackground,
+                contentColor = Color.White
+            ),
+            onClick = {
+                try{
+                    val generatedData = generateConditionData()
+                    saveCondition(generatedData, selectedConditionTypeState.value)
+                }
+                catch (e: ConditionValidationException){
+                    scope.launch{
+                        Toast.makeText(context, e.message, Toast.LENGTH_LONG).show()
+                    }
+                }
+                catch (e: Exception){
+                    scope.launch{
+                        Toast.makeText(context, "Got an error generating condition: ${e.message}", Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+        ) {
+            Text("Save")
+        }
     }
 }

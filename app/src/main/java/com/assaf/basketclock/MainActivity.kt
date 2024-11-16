@@ -242,7 +242,17 @@ fun GamesPager(response: CalendarResponseWithTodayDate, coroutineScope: Coroutin
         ) { page ->
 
             val gamesForDate = response.leagueSchedule.gameDates[page].games
-            val sortedGames = gamesForDate.sortedBy { gameData -> gameData.realGameDateTimeUTC }
+            val statusOrderMap = mapOf<Int, Int>(
+                // First show active games.
+                2 to 1,
+                // Then show future games.
+                1 to 2,
+                // Then show finished games.
+                3 to 3
+            )
+            val sortedGames = gamesForDate.sortedWith(
+                compareBy<GameData> { statusOrderMap[it.gameStatus] }.thenBy { it.realGameDateTimeUTC }
+            )
             val gamesWithExpandStates = sortedGames.map { game -> game to remember { mutableStateOf(false) } }
 
             LazyColumn(

@@ -34,6 +34,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import com.assaf.basketclock.conditions.ConditionsDialog
 import com.assaf.basketclock.ui.theme.CardBackground
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -58,12 +59,15 @@ fun GameCard(gameData: GameData, isExpandedState: MutableState<Boolean>) {
             modifier = Modifier.fillMaxSize()
         ){
             GameDataSection(gameData)
-            AnimatedVisibility(
-                visible = isExpandedState.value,
-            ) {
-                ConditionsSection()
+
+            if (gameData.gameStatus != 3){
+                AnimatedVisibility(
+                    visible = isExpandedState.value,
+                ) {
+                    ConditionsSection()
+                }
+                ExpandSection(isExpandedState, showDialogState)
             }
-            ExpandSection(isExpandedState, showDialogState)
         }
     }
 

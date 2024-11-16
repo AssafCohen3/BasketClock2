@@ -10,15 +10,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ElevatedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
@@ -28,30 +23,26 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.assaf.basketclock.ConditionScreenTitle
 import com.assaf.basketclock.GameData
 import com.assaf.basketclock.LOGOS_RESOURCES
 import com.assaf.basketclock.R
-import com.assaf.basketclock.SelectedConditionType
 import com.assaf.basketclock.TeamGameData
-import com.assaf.basketclock.ui.theme.CardBackground
 
 
 @Composable
-fun LeaderConditionTeamColumn(teamData: TeamGameData, selectedTeam: MutableState<Int?>){
+fun LeaderConditionTeamColumn(teamData: TeamGameData, selectedTeam: MutableState<TeamGameData?>){
     Box(
         Modifier
             .clip(RoundedCornerShape(8.dp))
-            .background(if (selectedTeam.value == teamData.teamId) Color(0x343B3CF8) else Color.Transparent)
+            .background(if (selectedTeam.value != null && selectedTeam.value!!.teamId == teamData.teamId) Color(0x343B3CF8) else Color.Transparent)
             .border(BorderStroke(1.dp, Color.Gray), shape = RoundedCornerShape(8.dp))
             .clickable{
-                selectedTeam.value = teamData.teamId
+                selectedTeam.value = teamData
             }
     ){
         Column(
@@ -73,9 +64,7 @@ fun LeaderConditionTeamColumn(teamData: TeamGameData, selectedTeam: MutableState
 }
 
 @Composable
-fun LeaderConditionContent(gameData: GameData){
-    val selectedTeam = remember { mutableStateOf<Int?>(null) }
-
+fun LeaderConditionContent(gameData: GameData, selectedTeam: MutableState<TeamGameData?>){
     Row(
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
@@ -90,42 +79,28 @@ fun LeaderConditionContent(gameData: GameData){
 
 @Composable
 fun LeaderConditionScreen(
-    selectedConditionTypeState: MutableState<SelectedConditionType>,
-    gameData: GameData
+    selectedConditionTypeState: MutableState<ConditionType>,
+    gameData: GameData,
+    saveCondition: (Map<String, Any>, ConditionType) -> Unit
 ){
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .fillMaxHeight()
-            .padding(16.dp)
-        ,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        ConditionScreenTitle(
-            selectedConditionTypeState,
-            "Leader Condition",
-            LocalContext.current.getString(R.string.leader_condition_help)
-        )
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .fillMaxHeight()
-                .weight(1f)
-            ,
-            verticalArrangement = Arrangement.SpaceAround,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            LeaderConditionContent(gameData)
-        }
-        Spacer(Modifier.height(12.dp))
-        ElevatedButton(
-            colors = ButtonDefaults.buttonColors(
-                containerColor = CardBackground,
-                contentColor = Color.White
-            ),
-            onClick = {}
-        ) {
-            Text("Save")
-        }
-    }
+    val selectedTeam = remember { mutableStateOf<TeamGameData?>(null) }
+
+    BaseConditionScreen(
+        selectedConditionTypeState = selectedConditionTypeState,
+        titleText = "Leader Condition",
+        conditionHelpResourceId = R.string.leader_condition_help,
+        content = {
+            LeaderConditionContent(gameData, selectedTeam)
+        },
+        generateConditionData = {
+            if (selectedTeam.value == null){
+                throw ConditionValidationException("You must select a team!")
+            }
+
+            mapOf(
+                "teamId" to selectedTeam.value!!.teamId
+            )
+        },
+        saveCondition = saveCondition
+    )
 }
