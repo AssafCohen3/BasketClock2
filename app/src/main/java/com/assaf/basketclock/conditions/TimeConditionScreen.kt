@@ -36,6 +36,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.assaf.basketclock.GameData
 import com.assaf.basketclock.R
+import com.assaf.basketclock.serializeToMap
+import kotlinx.coroutines.Job
 
 val QUARTERS = listOf(
     Quarter("Q1", 1),
@@ -163,21 +165,21 @@ fun validateGameMomentRange(
         }
     }
 
-    return mapOf(
-        "startQuarter" to rangeStart.quarter.value.quarter,
-        "startQuarterDisplay" to rangeStart.quarter.value.displayName,
-        "startMinute" to rangeStart.effectiveMinute(),
-        "endQuarter" to rangeEnd.quarter.value.quarter,
-        "endQuarterDisplay" to rangeEnd.quarter.value.displayName,
-        "endMinute" to rangeEnd.effectiveMinute()
-    )
+    return TimeConditionData(
+        rangeStart.quarter.value.quarter,
+        rangeStart.quarter.value.displayName,
+        rangeStart.effectiveMinute(),
+        rangeEnd.quarter.value.quarter,
+        rangeEnd.quarter.value.displayName,
+        rangeEnd.effectiveMinute()
+    ).serializeToMap()
 }
 
 @Composable
 fun TimeConditionScreen(
     selectedConditionTypeState: MutableState<ConditionType>,
     gameData: GameData,
-    saveCondition: (Map<String, Any>, ConditionType) -> Unit
+    saveCondition: (Map<String, Any>, ConditionType) -> Job
 ){
     val rangeStart = GameMomentState()
     val rangeEnd = GameMomentState()

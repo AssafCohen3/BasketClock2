@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     kotlin("plugin.serialization") version "2.0.21"
+    id("com.google.devtools.ksp")
 }
 
 android {
@@ -42,21 +43,25 @@ android {
 
 dependencies {
 
+    implementation("androidx.room:room-runtime:2.6.1")
+    ksp("androidx.room:room-compiler:2.6.1")
+    implementation("androidx.room:room-ktx:2.6.1")
+    implementation("com.google.code.gson:gson:2.11.0")
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
-    implementation(libs.androidx.activity.compose)
-    implementation(platform(libs.androidx.compose.bom))
+    implementation("androidx.activity:activity-compose:1.9.3")
+    implementation(platform("androidx.compose:compose-bom:2024.11.00"))
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation("androidx.compose.material3:material3:1.3.1")
-    implementation(libs.coil.compose) // Or latest version
+    implementation("io.coil-kt.coil3:coil-compose:3.0.3") // Or latest version
     implementation("io.coil-kt:coil-svg:2.2.2")
-    implementation("androidx.compose.ui:ui:1.3.0") // Or latest version
-    implementation("androidx.compose.material:material:1.3.0")
+    implementation("androidx.compose.ui:ui:1.7.5") // Or latest version
+    implementation("androidx.compose.material:material:1.7.5")
     implementation("com.chargemap.compose:numberpicker:1.0.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
     implementation(libs.okhttp) // Or latest version
-    implementation(libs.kotlinx.serialization.json)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

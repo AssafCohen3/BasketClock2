@@ -43,19 +43,17 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.assaf.basketclock.AppDatabase
+import com.assaf.basketclock.Condition
 import com.assaf.basketclock.GameData
 import com.assaf.basketclock.R
 import com.assaf.basketclock.ui.theme.BackgroundDark
 import com.assaf.basketclock.ui.theme.CardBackground
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 
 class ConditionValidationException(message: String) : Exception(message)
-
-
-enum class ConditionType {
-    NONE, TIME, DIFFERENCE, LEADER
-}
 
 
 @Composable
@@ -65,9 +63,21 @@ fun ConditionsDialog(isDialogOpen: MutableState<Boolean>, gameData: GameData){
 
     val saveCondition = { conditionData: Map<String, Any>, conditionType: ConditionType ->
         scope.launch {
-            Toast.makeText(context, "Type: ${conditionType.name} Data: $conditionData", Toast.LENGTH_LONG).show()
+            AppDatabase.getDatabase(context).conditionDao().insertCondition(Condition(
+                gameId = gameData.gameId,
+                gameDateTime = gameData.realGameDateTimeUTC,
+                homeTeamId = gameData.homeTeam.teamId,
+                homeTeamName = gameData.homeTeam.teamName,
+                homeTeamTricode = gameData.homeTeam.teamTricode,
+                awayTeamId = gameData.awayTeam.teamId,
+                awayTeamName = gameData.awayTeam.teamName,
+                awayTeamTricode = gameData.awayTeam.teamTricode,
+                conditionType = conditionType,
+                conditionData = conditionData
+            ))
+            Toast.makeText(context, "Condition was saved successfully!", Toast.LENGTH_LONG).show()
+            isDialogOpen.value = false
         }
-        isDialogOpen.value = false
     }
 
     val selectedConditionTypeState = remember {
@@ -259,7 +269,7 @@ fun BaseConditionScreen(
     conditionHelpResourceId: Int,
     content: @Composable (() -> Unit),
     generateConditionData: () -> Map<String, Any>,
-    saveCondition: (Map<String, Any>, ConditionType) -> Unit
+    saveCondition: (Map<String, Any>, ConditionType) -> Job
 ){
     val scope = rememberCoroutineScope()
     val context = LocalContext.current

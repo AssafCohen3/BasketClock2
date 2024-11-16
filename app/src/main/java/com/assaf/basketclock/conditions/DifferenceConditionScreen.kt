@@ -26,31 +26,12 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.assaf.basketclock.R
+import com.assaf.basketclock.serializeToMap
 import com.chargemap.compose.numberpicker.NumberPicker
+import kotlinx.coroutines.Job
 
 
 val DIFFERENCE_SIGNS = listOf("≤", ">")
-
-data class DifferenceConditionData(
-    val sign: String,
-    val difference: Int
-){
-    fun toMap(): Map<String, Any>{
-        return mapOf(
-            "sign" to sign,
-            "difference" to difference
-        )
-    }
-
-    companion object{
-        fun fromMap(map: Map<String, Any>): DifferenceConditionData {
-            return DifferenceConditionData(
-                map["sign"] as String,
-                map["difference"] as Int
-            )
-        }
-    }
-}
 
 
 @Composable
@@ -119,7 +100,7 @@ fun DifferenceConditionContent(
 @Composable
 fun DifferenceConditionScreen(
     selectedConditionTypeState: MutableState<ConditionType>,
-    saveCondition: (Map<String, Any>, ConditionType) -> Unit
+    saveCondition: (Map<String, Any>, ConditionType) -> Job
 ) {
     val selectedDifferenceSign = remember { mutableStateOf(DIFFERENCE_SIGNS[0]) }
     val selectedDiff  = remember { mutableIntStateOf(10) }
@@ -141,7 +122,7 @@ fun DifferenceConditionScreen(
             )
         },
         generateConditionData = {
-            conditionData.value.toMap()
+            conditionData.value.serializeToMap()
         },
         saveCondition = saveCondition
     )

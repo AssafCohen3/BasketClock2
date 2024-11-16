@@ -32,6 +32,8 @@ import com.assaf.basketclock.GameData
 import com.assaf.basketclock.LOGOS_RESOURCES
 import com.assaf.basketclock.R
 import com.assaf.basketclock.TeamGameData
+import com.assaf.basketclock.serializeToMap
+import kotlinx.coroutines.Job
 
 
 @Composable
@@ -81,7 +83,7 @@ fun LeaderConditionContent(gameData: GameData, selectedTeam: MutableState<TeamGa
 fun LeaderConditionScreen(
     selectedConditionTypeState: MutableState<ConditionType>,
     gameData: GameData,
-    saveCondition: (Map<String, Any>, ConditionType) -> Unit
+    saveCondition: (Map<String, Any>, ConditionType) -> Job
 ){
     val selectedTeam = remember { mutableStateOf<TeamGameData?>(null) }
 
@@ -97,9 +99,7 @@ fun LeaderConditionScreen(
                 throw ConditionValidationException("You must select a team!")
             }
 
-            mapOf(
-                "teamId" to selectedTeam.value!!.teamId
-            )
+            LeaderConditionData(selectedTeam.value!!.teamId).serializeToMap()
         },
         saveCondition = saveCondition
     )
