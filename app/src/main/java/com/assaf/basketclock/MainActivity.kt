@@ -1,6 +1,9 @@
 package com.assaf.basketclock
 
+import android.content.Context
+import android.content.Intent
 import android.os.Bundle
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
@@ -16,6 +19,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
@@ -24,17 +29,23 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.AlertDialogDefaults
+import androidx.compose.material3.BasicAlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -44,10 +55,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.assaf.basketclock.scheduling.fireReceiver
 import com.assaf.basketclock.ui.theme.BackgroundDark
 import com.assaf.basketclock.ui.theme.BasketClockTheme
 import kotlinx.coroutines.CoroutineScope
@@ -56,49 +71,145 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 
 class MainActivity : ComponentActivity() {
+    private var hasPermissionsState: MutableState<Boolean>? = null
+
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 //        enableEdgeToEdge()
         setContent {
+            hasPermissionsState = remember { mutableStateOf(canScheduleExactAlarms(this)) }
+
             BasketClockTheme {
                 Scaffold(
                     topBar = {
-                        Surface(shadowElevation = 8.dp) {
-                            TopAppBar(
-                                modifier = Modifier
-                                    .background(BackgroundDark),
-                                title = {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ){
-                                        Image(
-                                            painter = painterResource(id = R.drawable.app_logo),
-                                            contentDescription = "App Icon",
-                                            modifier = Modifier
-                                                .size(30.dp)
-                                                .clip(CircleShape)
-                                        )
-                                        Spacer(
-                                            modifier = Modifier.width(8.dp)
-                                        )
-                                        Text(
-                                            text = "Basket Clock",
-                                            color = Color.White,
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 14.sp
-                                        )
-                                    }
-                                }
-                            )
-                        }
+                        MyAppBar()
                     }
                 ) {
                     innerPadding ->
-                    HorizontalCardList(innerPadding)
+                    MainActivityContent(innerPadding)
                 }
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        hasPermissionsState?.value = canScheduleExactAlarms(this)
+    }
+
+    @OptIn(ExperimentalMaterial3Api::class)
+    @Composable
+    fun MainActivityContent(innerPadding: PaddingValues) {
+
+        var calendarResponseWithTodayDate by remember { mutableStateOf<CalendarResponseWithTodayDate?>(null) }
+        var isLoading by remember { mutableStateOf(true) }
+        var hasError by remember { mutableStateOf(false) }
+
+        val coroutineScope = rememberCoroutineScope()
+
+        val refreshData = {
+            coroutineScope.launch {
+                try {
+                    isLoading = true
+                    val calendarResponse = fetchCompleteGamesData()
+                    calendarResponseWithTodayDate = calendarResponse
+                    isLoading = false
+                    hasError = false
+                } catch (_: Exception) {
+                    hasError = true
+                    isLoading = false
+                }
+            }
+        }
+
+        LaunchedEffect(Unit) {
+            refreshData()
+        }
+
+        if (!hasPermissionsState!!.value){
+            SchedulingPermissionDialog()
+        }
+
+        if(isLoading){
+            LoadingScreen()
+        }
+        else{
+            @Suppress("KotlinConstantConditions")
+            PullToRefreshBox(
+                isRefreshing = isLoading,
+                onRefresh = {
+                    refreshData()
+                },
+                modifier = Modifier.padding(innerPadding)
+            ) {
+                if(hasError){
+                    Box(
+                        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            "Got an error while fetching the data.\nTry Reload.",
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+                else{
+                    calendarResponseWithTodayDate?.let { response ->
+                        GamesPager(response, coroutineScope)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MyAppBar(){
+    val currentContext = LocalContext.current
+    Surface(shadowElevation = 8.dp) {
+        TopAppBar(
+            modifier = Modifier
+                .background(BackgroundDark),
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ){
+                    Image(
+                        painter = painterResource(id = R.drawable.app_logo),
+                        contentDescription = "App Icon",
+                        modifier = Modifier
+                            .size(30.dp)
+                            .clip(CircleShape)
+                    )
+                    Spacer(
+                        modifier = Modifier.width(8.dp)
+                    )
+                    Text(
+                        text = "Basket Clock",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                    IconButton(onClick = {
+                        fireReceiver(currentContext)
+                    }) {
+                        Image(
+                            painter = painterResource(
+                                id = R.drawable.bug_svgrepo_com
+                            ),
+                            modifier = Modifier.size(25.dp),
+                            colorFilter = ColorFilter.tint(Color.White),
+                            contentDescription = "Debug Alarm Manager"
+                        )
+                    }
+                    Spacer(Modifier.width(8.dp))
+
+                }
+            }
+        )
     }
 }
 
@@ -111,68 +222,6 @@ fun LoadingScreen() {
         CircularProgressIndicator()
     }
 }
-
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun HorizontalCardList(innerPadding: PaddingValues) {
-    var calendarResponseWithTodayDate by remember { mutableStateOf<CalendarResponseWithTodayDate?>(null) }
-    var isLoading by remember { mutableStateOf(true) }
-    var hasError by remember { mutableStateOf(false) }
-
-    val coroutineScope = rememberCoroutineScope()
-
-    val refreshData = {
-        coroutineScope.launch {
-            try {
-                isLoading = true
-                val calendarResponse = fetchCompleteGamesData()
-                calendarResponseWithTodayDate = calendarResponse
-                isLoading = false
-                hasError = false
-            } catch (_: Exception) {
-                hasError = true
-                isLoading = false
-            }
-        }
-    }
-
-    LaunchedEffect(Unit) {
-        refreshData()
-    }
-
-    if(isLoading){
-        LoadingScreen()
-    }
-    else{
-        @Suppress("KotlinConstantConditions")
-        PullToRefreshBox(
-            isRefreshing = isLoading,
-            onRefresh = {
-                refreshData()
-            },
-            modifier = Modifier.padding(innerPadding)
-        ) {
-            if(hasError){
-                Box(
-                    modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        "Got an error while fetching the data.\nTry Reload.",
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-            else{
-                calendarResponseWithTodayDate?.let { response ->
-                    GamesPager(response, coroutineScope)
-                }
-            }
-        }
-    }
-}
-
 
 @Composable
 fun DateIndicator(pagerState: PagerState, calendar: CalendarResponseWithTodayDate,
@@ -264,5 +313,48 @@ fun GamesPager(response: CalendarResponseWithTodayDate, coroutineScope: Coroutin
                 }
             }
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SchedulingPermissionDialog(){
+    val context = LocalContext.current
+
+    BasicAlertDialog(
+        onDismissRequest = {},
+    ){
+        Surface(
+            modifier = Modifier
+                .wrapContentWidth()
+                .wrapContentHeight(),
+            shape = MaterialTheme.shapes.large,
+            tonalElevation = AlertDialogDefaults.TonalElevation
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    "For the app to work properly, you need to grant it the permission to schedule exact alarms.",
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+                Button(
+                    onClick = {
+                        openScheduleAlarmsPermissionActivity(context)
+                    },
+                ) {
+                    Text("Grant Permissions")
+                }
+            }
+        }
+    }
+}
+
+fun openScheduleAlarmsPermissionActivity(context: Context){
+    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+        val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
+        context.startActivity(intent)
     }
 }

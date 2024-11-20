@@ -1,5 +1,7 @@
 package com.assaf.basketclock
 
+import android.app.AlarmManager
+import android.content.Context
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 
@@ -18,4 +20,12 @@ inline fun <reified T> Map<String, Any>.toDataClass(): T {
 inline fun <I, reified O> I.convert(): O {
     val json = Gson().toJson(this)
     return Gson().fromJson(json, object : TypeToken<O>() {}.type)
+}
+
+fun canScheduleExactAlarms(context: Context): Boolean{
+    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        return alarmManager.canScheduleExactAlarms()
+    }
+    return true
 }

@@ -21,6 +21,8 @@ import kotlinx.coroutines.flow.Flow
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
+import java.util.Calendar
+import java.util.TimeZone
 
 
 @Entity(tableName = "Conditions")
@@ -101,10 +103,46 @@ class MapTypeConverter {
     }
 }
 
+class ConditionsRepository(private val conditionDao: ConditionDao) {
+    suspend fun insertCondition(condition: Condition) {
+        conditionDao.insertCondition(condition)
+    }
+
+    suspend fun deleteCondition(condition: Condition) {
+        conditionDao.deleteCondition(condition)
+    }
+
+    fun getGameConditions(gameId: String): Flow<List<Condition>> {
+        return conditionDao.getGameConditions(gameId)
+    }
+
+    suspend fun getTodayConditions(): List<Condition> {
+        // Get the time between the beginning of the day and its end, in relation to est clock.
+        val startTime = Calendar.getInstance(TimeZone.getTimeZone("EST")).apply {
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
+
+        return conditionDao.getConditionsWithinTimeRange(startTime / 1000, 60*60*24)
+    }
+}
+
 @Database(entities = [Condition::class], version = 1, exportSchema = false)
 @TypeConverters(ZonedDateTypeConverter::class, ConditionTypeConverter::class, MapTypeConverter::class)
 abstract class AppDatabase: RoomDatabase() {
     abstract fun conditionDao(): ConditionDao
+
+    @Volatile
+    private var ConditionsRepository: ConditionsRepository? = null
+
+    fun getConditionsRepository(): ConditionsRepository {
+        return ConditionsRepository ?: synchronized(this) {
+            ConditionsRepository(conditionDao()).also { ConditionsRepository = it }
+        }
+    }
+
 
     companion object {
         @Volatile

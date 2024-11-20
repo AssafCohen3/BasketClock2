@@ -61,6 +61,7 @@ dependencies {
     implementation("androidx.compose.material:material:1.7.5")
     implementation("com.chargemap.compose:numberpicker:1.0.3")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
+    implementation("com.jakewharton.timber:timber:5.0.1")
     implementation(libs.okhttp) // Or latest version
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

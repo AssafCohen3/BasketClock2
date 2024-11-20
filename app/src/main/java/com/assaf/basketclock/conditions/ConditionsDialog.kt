@@ -63,7 +63,7 @@ fun ConditionsDialog(isDialogOpen: MutableState<Boolean>, gameData: GameData){
 
     val saveCondition = { conditionData: Map<String, Any>, conditionType: ConditionType ->
         scope.launch {
-            AppDatabase.getDatabase(context).conditionDao().insertCondition(Condition(
+            AppDatabase.getDatabase(context).getConditionsRepository().insertCondition(Condition(
                 gameId = gameData.gameId,
                 gameDateTime = gameData.realGameDateTimeUTC,
                 homeTeamId = gameData.homeTeam.teamId,

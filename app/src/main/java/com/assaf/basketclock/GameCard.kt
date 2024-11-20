@@ -78,11 +78,11 @@ fun GameCard(gameData: GameData, isExpandedState: MutableState<Boolean>) {
             GameDataSection(gameData)
 
             if (gameData.gameStatus != 3){
-                val gameConditions = AppDatabase.getDatabase(context).conditionDao().getGameConditions(gameData.gameId).collectAsState(initial = emptyList())
+                val gameConditions = AppDatabase.getDatabase(context).getConditionsRepository().getGameConditions(gameData.gameId).collectAsState(initial = emptyList())
 
                 val deleteCondition = { condition: Condition ->
                     scope.launch{
-                        AppDatabase.getDatabase(context).conditionDao().deleteCondition(condition)
+                        AppDatabase.getDatabase(context).getConditionsRepository().deleteCondition(condition)
                         Toast.makeText(context, "Condition deleted successfully!", Toast.LENGTH_LONG).show()
                     }
                 }
