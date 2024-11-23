@@ -5,6 +5,10 @@
     <uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+
     <application
         android:name=".Application"
         android:allowBackup="true"
@@ -16,6 +20,12 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.BasketClock"
         tools:targetApi="31">
+        <service
+            android:name=".scheduling.VerifyingService"
+            android:foregroundServiceType="dataSync"
+            android:exported="false"
+            >
+        </service>
         <receiver
             android:name=".scheduling.MyAlarmReceiver"
             android:process=":remote"

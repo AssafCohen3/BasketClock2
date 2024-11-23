@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.widget.Toast
 import com.assaf.basketclock.AppDatabase
+import com.assaf.basketclock.canPostNotifications
 import com.assaf.basketclock.canScheduleExactAlarms
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -20,25 +21,39 @@ class MyAlarmReceiver : BroadcastReceiver() {
     private val coroutineScope = CoroutineScope(Dispatchers.IO)
 
     override fun onReceive(context: Context, intent: Intent) {
-        if (!canScheduleExactAlarms(context)){
+        // Schedule tomorrow alarm.
+        Timber.d("Main alarm fired, scheduling tomorrow alarm...")
+        scheduleDailyAlarm(context, true)
+
+        if (!canPostNotifications(context)){
+            Timber.d("Skipped alarm receiver since notifications are not enabled.")
+            return
+        }
+        else if (!canScheduleExactAlarms(context)){
+            // TODO show notification.
             Timber.d("Skipped alarm receiver since alarm scheduling is not enabled.")
             return
         }
 
         coroutineScope.launch{
             val todayGames = AppDatabase.getDatabase(context).getConditionsRepository().getTodayConditions()
-            Timber.d("Broadcast received!!")
             Timber.d("Games count: ${todayGames.size}")
             withContext(Dispatchers.Main){
                 Toast.makeText(context, "Today's games count: ${todayGames.size}", Toast.LENGTH_SHORT).show()
+            }
+            if (!todayGames.isEmpty()){
+                Timber.d("Firing verifying service...")
+                fireVerifyingService(context)
             }
         }
     }
 }
 
 
-fun scheduleDailyAlarm(context: Context) {
-    if (isAlarmSet(context)){
+fun scheduleDailyAlarm(context: Context, override: Boolean = false) {
+    Timber.d("Setting daily alarm...")
+    if (!override && isAlarmSet(context)){
+        Timber.d("Alarm has already been set!")
         return
     }
 
@@ -67,13 +82,14 @@ fun scheduleDailyAlarm(context: Context) {
         }
     }
 
-    // Schedule the alarm to repeat daily
-    alarmManager.setRepeating(
+    // Schedule the next alarm.
+    alarmManager.setExact(
         AlarmManager.RTC_WAKEUP,
         calendar.timeInMillis,
-        AlarmManager.INTERVAL_DAY,
         pendingIntent
     )
+
+    Timber.d("Alarm has been set successfully for ${(calendar.timeInMillis - System.currentTimeMillis()) / 1000} seconds later.")
 }
 
 fun isAlarmSet(context: Context): Boolean {

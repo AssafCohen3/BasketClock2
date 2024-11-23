@@ -2,6 +2,7 @@ package com.assaf.basketclock
 
 import android.app.AlarmManager
 import android.content.Context
+import androidx.core.app.NotificationManagerCompat
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 
@@ -28,4 +29,8 @@ fun canScheduleExactAlarms(context: Context): Boolean{
         return alarmManager.canScheduleExactAlarms()
     }
     return true
+}
+
+fun canPostNotifications(context: Context): Boolean{
+    return NotificationManagerCompat.from(context).areNotificationsEnabled()
 }

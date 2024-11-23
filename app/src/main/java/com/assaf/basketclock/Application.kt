@@ -8,6 +8,7 @@ class Application: Application() {
     override fun onCreate() {
         super.onCreate()
         Timber.plant(FileLoggingTree(this))
+        Timber.d("Scheduling daily alarm from application...")
         scheduleDailyAlarm(this)
     }
 }

@@ -1,5 +1,6 @@
 package com.assaf.basketclock
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
@@ -62,6 +63,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.app.ActivityCompat
 import com.assaf.basketclock.scheduling.fireReceiver
 import com.assaf.basketclock.ui.theme.BackgroundDark
 import com.assaf.basketclock.ui.theme.BasketClockTheme
@@ -71,14 +73,16 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 
 class MainActivity : ComponentActivity() {
-    private var hasPermissionsState: MutableState<Boolean>? = null
+    private var hasAlarmSchedulingPermissionsState: MutableState<Boolean>? = null
+    private var hasNotificationsPermissionsState: MutableState<Boolean>? = null
 
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 //        enableEdgeToEdge()
         setContent {
-            hasPermissionsState = remember { mutableStateOf(canScheduleExactAlarms(this)) }
+            hasAlarmSchedulingPermissionsState = remember { mutableStateOf(canScheduleExactAlarms(this)) }
+            hasNotificationsPermissionsState = remember { mutableStateOf(canPostNotifications(this)) }
 
             BasketClockTheme {
                 Scaffold(
@@ -95,7 +99,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        hasPermissionsState?.value = canScheduleExactAlarms(this)
+        hasAlarmSchedulingPermissionsState?.value = canScheduleExactAlarms(this)
+        hasNotificationsPermissionsState?.value = canPostNotifications(this)
     }
 
     @OptIn(ExperimentalMaterial3Api::class)
@@ -127,8 +132,11 @@ class MainActivity : ComponentActivity() {
             refreshData()
         }
 
-        if (!hasPermissionsState!!.value){
+        if (!hasAlarmSchedulingPermissionsState!!.value){
             SchedulingPermissionDialog()
+        }
+        else if (!hasNotificationsPermissionsState!!.value){
+            AllowNotificationsDialog()
         }
 
         if(isLoading){
@@ -160,6 +168,22 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
+        }
+    }
+
+    @Composable
+    fun AllowNotificationsDialog(){
+        ShowPermissionsDialog(
+            "For the app to work properly, you need to grant it the permission to show notifications.",
+            "Allow notifications"
+        ) {
+            openNotificationsSettingsActivity()
+        }
+    }
+
+    fun openNotificationsSettingsActivity(){
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 101);
         }
     }
 }
@@ -316,11 +340,32 @@ fun GamesPager(response: CalendarResponseWithTodayDate, coroutineScope: Coroutin
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SchedulingPermissionDialog(){
     val context = LocalContext.current
 
+    ShowPermissionsDialog(
+        "For the app to work properly, you need to grant it the permission to schedule exact alarms.",
+        "Grant Permissions"
+    ) {
+        openScheduleAlarmsPermissionActivity(context)
+    }
+}
+
+fun openScheduleAlarmsPermissionActivity(context: Context){
+    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+        val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
+        context.startActivity(intent)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ShowPermissionsDialog(
+    prompt: String,
+    confirmText: String,
+    onGrantPermissionsClick: () -> Unit
+){
     BasicAlertDialog(
         onDismissRequest = {},
     ){
@@ -336,25 +381,18 @@ fun SchedulingPermissionDialog(){
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    "For the app to work properly, you need to grant it the permission to schedule exact alarms.",
+                    prompt,
                     textAlign = TextAlign.Center
                 )
                 Spacer(modifier = Modifier.height(24.dp))
                 Button(
                     onClick = {
-                        openScheduleAlarmsPermissionActivity(context)
+                        onGrantPermissionsClick()
                     },
                 ) {
-                    Text("Grant Permissions")
+                    Text(confirmText)
                 }
             }
         }
-    }
-}
-
-fun openScheduleAlarmsPermissionActivity(context: Context){
-    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-        val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
-        context.startActivity(intent)
     }
 }
