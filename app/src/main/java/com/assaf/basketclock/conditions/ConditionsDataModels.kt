@@ -3,6 +3,7 @@ package com.assaf.basketclock.conditions
 import android.annotation.SuppressLint
 import com.assaf.basketclock.Condition
 import com.assaf.basketclock.R
+import com.assaf.basketclock.scheduling.ScheduledGameWithConditions
 import com.assaf.basketclock.toDataClass
 
 enum class ConditionType {
@@ -10,15 +11,23 @@ enum class ConditionType {
 }
 
 interface AbstractConditionData{
+    fun conditionType(): ConditionType
+
     fun describeCondition(condition: Condition): String
 
     fun conditionIcon(): Int
+
+    suspend fun calculateNextRelevantTime(game: ScheduledGameWithConditions): Long
 }
 
 data class DifferenceConditionData(
     val sign: String,
     val difference: Int
 ): AbstractConditionData{
+    override fun conditionType(): ConditionType {
+        return ConditionType.DIFFERENCE
+    }
+
     override fun describeCondition(condition: Condition): String {
         return "The difference is $sign than $difference."
     }
@@ -26,11 +35,19 @@ data class DifferenceConditionData(
     override fun conditionIcon(): Int {
         return R.drawable.ic_difference_condition_icon_3
     }
+
+    override suspend fun calculateNextRelevantTime(game: ScheduledGameWithConditions): Long {
+        return calculateDifferenceConditionNextRelevantTime(game, this)
+    }
 }
 
 data class LeaderConditionData(
     val leaderTeamId: Int
 ): AbstractConditionData{
+    override fun conditionType(): ConditionType {
+        return ConditionType.LEADER
+    }
+
     override fun describeCondition(condition: Condition): String {
         val leaderTeamName = if (condition.homeTeamId == leaderTeamId) condition.homeTeamName else condition.awayTeamName
         return "The leader is $leaderTeamName."
@@ -38,6 +55,10 @@ data class LeaderConditionData(
 
     override fun conditionIcon(): Int {
         return R.drawable.ic_leader_condition_icon
+    }
+
+    override suspend fun calculateNextRelevantTime(game: ScheduledGameWithConditions): Long {
+        return calculateLeaderConditionNextRelevantTime(game, this)
     }
 }
 
@@ -49,6 +70,16 @@ data class TimeConditionData(
     val endQuarterDisplay: String,
     val endMinute: Int
 ): AbstractConditionData{
+    val startMoment
+        get() = GameMoment(startQuarter, Clock(startMinute, 0.0))
+
+    val endMoment
+        get() = GameMoment(endQuarter, Clock(endMinute, 0.0))
+
+    override fun conditionType(): ConditionType {
+        return ConditionType.TIME
+    }
+
     @SuppressLint("DefaultLocale")
     override fun describeCondition(condition: Condition): String {
         val rangeStartMinuteText = if (startQuarter == 5) "" else String.format(" %02d:00", startMinute)
@@ -58,6 +89,10 @@ data class TimeConditionData(
 
     override fun conditionIcon(): Int {
         return R.drawable.ic_time_condition_icon
+    }
+
+    override suspend fun calculateNextRelevantTime(game: ScheduledGameWithConditions): Long {
+        return calculateTimeConditionNextRelevantTime(game, this)
     }
 }
 

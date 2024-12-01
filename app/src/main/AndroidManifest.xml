@@ -21,13 +21,17 @@
         android:theme="@style/Theme.BasketClock"
         tools:targetApi="31">
         <service
-            android:name=".scheduling.VerifyingService"
+            android:name=".scheduling.AlarmService"
             android:foregroundServiceType="dataSync"
             android:exported="false"
             >
         </service>
         <receiver
-            android:name=".scheduling.MyAlarmReceiver"
+            android:name=".scheduling.SimpleServiceStarter"
+            android:process=":remote"
+            android:enabled="true" />
+        <receiver
+            android:name=".scheduling.DailyAlarmReceiver"
             android:process=":remote"
             android:enabled="true" />
         <receiver

@@ -59,7 +59,7 @@ data class GameMomentState(
     val minute: MutableIntState = mutableIntStateOf(MINUTES[0]),
 ){
     fun gameTotalMinute(): Int{
-        return if (quarter.value.quarter == 5) 49 else quarter.value.quarter * 12 + minute.intValue
+        return if (quarter.value.quarter == 5) 49 else (quarter.value.quarter - 1) * 12 + minute.intValue
     }
 
     fun effectiveMinute(): Int{
@@ -158,9 +158,8 @@ fun validateGameMomentRange(
         throw ConditionValidationException("The range beginning can't be after the range end.")
     }
 
-    if (gameData.gameStatus == 2 && gameData.parsedGameClock() != null && gameData.period != null){
-        val (gameMinute, _) = gameData.parsedGameClock()!!
-        if (gameData.period * 12 + gameMinute >= rangeEnd.gameTotalMinute()){
+    if (gameData.gameStatus == 2 && gameData.gameMoment != null){
+        if (gameData.period!! * 12 + gameData.gameMoment!!.getReverseClock().minutes >= rangeEnd.gameTotalMinute()){
             throw ConditionValidationException("The game clock is already after the range end.")
         }
     }

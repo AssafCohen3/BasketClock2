@@ -5,19 +5,17 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.widget.Toast
 import com.assaf.basketclock.AppDatabase
 import com.assaf.basketclock.canPostNotifications
 import com.assaf.basketclock.canScheduleExactAlarms
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.util.Calendar
 import java.util.TimeZone
 
-class MyAlarmReceiver : BroadcastReceiver() {
+class DailyAlarmReceiver : BroadcastReceiver() {
     private val coroutineScope = CoroutineScope(Dispatchers.IO)
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -36,14 +34,11 @@ class MyAlarmReceiver : BroadcastReceiver() {
         }
 
         coroutineScope.launch{
-            val todayGames = AppDatabase.getDatabase(context).getConditionsRepository().getTodayConditions()
+            val todayGames = AppDatabase.getDatabase(context).getConditionsRepository().getTodayGamesConditions()
             Timber.d("Games count: ${todayGames.size}")
-            withContext(Dispatchers.Main){
-                Toast.makeText(context, "Today's games count: ${todayGames.size}", Toast.LENGTH_SHORT).show()
-            }
             if (!todayGames.isEmpty()){
                 Timber.d("Firing verifying service...")
-                fireVerifyingService(context)
+                fireAlarmService(context)
             }
         }
     }
@@ -60,7 +55,7 @@ fun scheduleDailyAlarm(context: Context, override: Boolean = false) {
     val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
 
     // Create an intent for the receiver
-    val intent = Intent(context, MyAlarmReceiver::class.java)
+    val intent = Intent(context, DailyAlarmReceiver::class.java)
     val pendingIntent = PendingIntent.getBroadcast(
         context,
         1000,
@@ -93,7 +88,7 @@ fun scheduleDailyAlarm(context: Context, override: Boolean = false) {
 }
 
 fun isAlarmSet(context: Context): Boolean {
-    val intent = Intent(context, MyAlarmReceiver::class.java)
+    val intent = Intent(context, DailyAlarmReceiver::class.java)
     val pendingIntent = PendingIntent.getBroadcast(
         context,
         1000,
@@ -103,7 +98,7 @@ fun isAlarmSet(context: Context): Boolean {
     return pendingIntent != null
 }
 
-fun fireReceiver(context: Context){
-    val intent = Intent(context, MyAlarmReceiver::class.java)
+fun fireDailyReceiver(context: Context){
+    val intent = Intent(context, DailyAlarmReceiver::class.java)
     context.sendBroadcast(intent)
 }

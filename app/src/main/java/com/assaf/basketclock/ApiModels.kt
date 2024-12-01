@@ -1,9 +1,12 @@
 package com.assaf.basketclock
 
+import com.assaf.basketclock.conditions.Clock
+import com.assaf.basketclock.conditions.GameMoment
 import kotlinx.serialization.Serializable
 import java.time.ZonedDateTime
 import java.util.Date
 import kotlin.Int
+import kotlin.math.abs
 
 
 @Serializable
@@ -27,7 +30,8 @@ data class GameData(
     val gameStatus: Int,
     val gameStatusText: String,
     val period: Int? = null,
-    val gameClock: String? = null,
+    @Serializable(with = ClockSerializer::class)
+    val gameClock: Clock? = null,
     @Serializable(with = KZonedDateTimeSerializer::class)
     val gameTimeUTC: ZonedDateTime,
     @Serializable(with = KZonedDateTimeSerializer::class)
@@ -47,16 +51,11 @@ data class GameData(
     val realGameDateTimeUTC: ZonedDateTime
         get() = gameDateTimeUTC ?: gameTimeUTC
 
-    fun parsedGameClock(): Pair<Int, Double>?{
-        if (gameClock == null || gameClock == "")
-            return null
+    val gameMoment: GameMoment?
+        get() = if (gameClock != null && period != null) GameMoment(period, gameClock) else null
 
-        // We expect the format "PT05M46.00S"
-        val minutes = gameClock.substring(2, 4).toInt()
-        val seconds = gameClock.substring(5, 10).toDouble()
-
-        return Pair(minutes, seconds)
-    }
+    val currentDiff: Int
+        get() = abs(homeTeam.score - awayTeam.score)
 }
 
 @Serializable
@@ -96,4 +95,38 @@ data class CalendarResponse(
 data class CalendarResponseWithTodayDate(
     val leagueSchedule: LeagueSchedule,
     val todayDate: Date
+)
+
+@Serializable
+data class PBPResponse(
+    val game: PBPGame
+)
+
+@Serializable
+data class PBPGame(
+    val gameId: String,
+    val actions: List<PBPAction>
+){
+    fun getSortedActions(): List<PBPAction>{
+        return actions.sortedBy { it.orderNumber }
+    }
+}
+
+@Serializable
+data class PBPAction(
+    val actionNumber: Int,
+    @Serializable(with = ClockSerializer::class)
+    val clock: Clock,
+    @Serializable(with = KZonedDateTimeSerializer::class)
+    val timeActual: ZonedDateTime,
+    val period: Int,
+    val periodType: String,
+    // Relevant values: "period"
+    val actionType: String,
+    // Relevant values: "end", "start"
+    val subType: String? = null,
+    val scoreHome: String,
+    val scoreAway: String,
+    val orderNumber: Int,
+    val teamId: Int? = null
 )

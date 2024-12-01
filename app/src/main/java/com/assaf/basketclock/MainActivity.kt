@@ -64,7 +64,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
-import com.assaf.basketclock.scheduling.fireReceiver
+import com.assaf.basketclock.scheduling.fireDailyReceiver
 import com.assaf.basketclock.ui.theme.BackgroundDark
 import com.assaf.basketclock.ui.theme.BasketClockTheme
 import kotlinx.coroutines.CoroutineScope
@@ -218,7 +218,7 @@ fun MyAppBar(){
                     )
                     Spacer(modifier = Modifier.weight(1f))
                     IconButton(onClick = {
-                        fireReceiver(currentContext)
+                        fireDailyReceiver(currentContext)
                     }) {
                         Image(
                             painter = painterResource(

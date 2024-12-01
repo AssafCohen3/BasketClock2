@@ -7,6 +7,23 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.IOException
 
+suspend fun fetchPBPData(gameId: String): PBPResponse = withContext(Dispatchers.IO){
+    val client = OkHttpClient()
+    val request = Request.Builder()
+        .url("https://cdn.nba.com/static/json/liveData/playbyplay/playbyplay_$gameId.json")
+        .build()
+
+    val response = client.newCall(request).execute()
+
+    if (response.isSuccessful){
+        val responseBody = response.body?.string()
+        Json { ignoreUnknownKeys = true}.decodeFromString<PBPResponse>(responseBody as String)
+    }
+    else {
+        throw IOException("Failed fetching pbp data.")
+    }
+}
+
 suspend fun fetchScoreBoardData(): ScoreboardResponse = withContext(Dispatchers.IO){
     val client = OkHttpClient()
     val request = Request.Builder()

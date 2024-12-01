@@ -5,6 +5,8 @@ import android.content.Context
 import androidx.core.app.NotificationManagerCompat
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import java.time.ZonedDateTime
+import java.util.Date
 
 
 //convert a data class to a map
@@ -33,4 +35,8 @@ fun canScheduleExactAlarms(context: Context): Boolean{
 
 fun canPostNotifications(context: Context): Boolean{
     return NotificationManagerCompat.from(context).areNotificationsEnabled()
+}
+
+fun getESTDate(date: ZonedDateTime): Date{
+    return Date.from(date.withZoneSameInstant(java.time.ZoneId.of("EST")).toInstant())
 }

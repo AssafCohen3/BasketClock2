@@ -44,6 +44,18 @@ data class Condition(
         get() = decodeConditionData(this)
 }
 
+data class GameWithConditions(
+    val gameId: String,
+    val gameDateTime: ZonedDateTime,
+    val homeTeamId: Int,
+    val homeTeamName: String,
+    val homeTeamTricode: String,
+    val awayTeamId: Int,
+    val awayTeamName: String,
+    val awayTeamTricode: String,
+    val conditions: MutableList<AbstractConditionData>
+)
+
 @Dao
 interface ConditionDao {
     @Insert
@@ -126,6 +138,29 @@ class ConditionsRepository(private val conditionDao: ConditionDao) {
         }.timeInMillis
 
         return conditionDao.getConditionsWithinTimeRange(startTime / 1000, 60*60*24)
+    }
+
+    suspend fun getTodayGamesConditions(): List<GameWithConditions> {
+        val todayConditions = getTodayConditions()
+        val todayGamesWithCondition = mutableMapOf<String, GameWithConditions>()
+        for (condition in todayConditions){
+            if (condition.gameId !in todayGamesWithCondition){
+                todayGamesWithCondition[condition.gameId] = GameWithConditions(
+                    condition.gameId,
+                    condition.gameDateTime,
+                    condition.homeTeamId,
+                    condition.homeTeamName,
+                    condition.homeTeamTricode,
+                    condition.awayTeamId,
+                    condition.awayTeamName,
+                    condition.awayTeamTricode,
+                    mutableListOf()
+                )
+            }
+            todayGamesWithCondition[condition.gameId]?.conditions?.add(condition.parsedConditionData)
+        }
+
+        return todayGamesWithCondition.values.toList()
     }
 }
 

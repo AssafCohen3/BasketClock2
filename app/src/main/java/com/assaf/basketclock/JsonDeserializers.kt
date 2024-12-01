@@ -1,5 +1,7 @@
 package com.assaf.basketclock
 
+import android.annotation.SuppressLint
+import com.assaf.basketclock.conditions.Clock
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
@@ -52,5 +54,19 @@ object KZonedDateTimeSerializer : KSerializer<ZonedDateTime> {
     override fun deserialize(decoder: Decoder): ZonedDateTime {
         val string = decoder.decodeString()
         return ZonedDateTime.parse(string)
+    }
+}
+
+object ClockSerializer : KSerializer<Clock> {
+    override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("Clock", PrimitiveKind.STRING)
+
+    @SuppressLint("DefaultLocale")
+    override fun serialize(encoder: Encoder, value: Clock) {
+        encoder.encodeString("PT${value.minutes}M${String.format("%05.2f", value.seconds)}S")
+    }
+
+    override fun deserialize(decoder: Decoder): Clock {
+        val string = decoder.decodeString()
+        return Clock(string.substring(2, 4).toInt(), string.substring(5, 10).toDouble())
     }
 }
