@@ -1,7 +1,7 @@
 package com.assaf.basketclock.conditions
 
 import android.annotation.SuppressLint
-import com.assaf.basketclock.Condition
+import com.assaf.basketclock.data.Condition
 import com.assaf.basketclock.R
 import com.assaf.basketclock.scheduling.ScheduledGameWithConditions
 import com.assaf.basketclock.toDataClass
@@ -82,8 +82,8 @@ data class TimeConditionData(
 
     @SuppressLint("DefaultLocale")
     override fun describeCondition(condition: Condition): String {
-        val rangeStartMinuteText = if (startQuarter == 5) "" else String.format(" %02d:00", startMinute)
-        val rangeEndMinuteText = if (endQuarter == 5) "" else String.format(" %02d:00", endMinute)
+        val rangeStartMinuteText = if (startQuarter == 5) "" else String.format(" %02d:00", startMoment.getReverseClock().minutes)
+        val rangeEndMinuteText = if (endQuarter == 5) "" else String.format(" %02d:00", endMoment.getReverseClock().minutes)
         return "The game is between $startQuarterDisplay$rangeStartMinuteText and $endQuarterDisplay$rangeEndMinuteText."
     }
 

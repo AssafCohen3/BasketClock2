@@ -65,6 +65,12 @@ data class GameMomentState(
     fun effectiveMinute(): Int{
         return if (quarter.value.quarter == 5) 0 else minute.intValue
     }
+
+    fun toGameMoment(): GameMoment{
+        val clock = Clock(minute.intValue, 0.0)
+        val reverseGameMoment = GameMoment(quarter.value.quarter, clock)
+        return GameMoment(quarter.value.quarter, reverseGameMoment.getReverseClock())
+    }
 }
 
 @Composable
@@ -159,18 +165,18 @@ fun validateGameMomentRange(
     }
 
     if (gameData.gameStatus == 2 && gameData.gameMoment != null){
-        if (gameData.period!! * 12 + gameData.gameMoment!!.getReverseClock().minutes >= rangeEnd.gameTotalMinute()){
+        if (gameData.gameMoment!!.toTotalSeconds() >= rangeEnd.toGameMoment().toTotalSeconds()){
             throw ConditionValidationException("The game clock is already after the range end.")
         }
     }
 
     return TimeConditionData(
-        rangeStart.quarter.value.quarter,
+        rangeStart.toGameMoment().period,
         rangeStart.quarter.value.displayName,
-        rangeStart.effectiveMinute(),
-        rangeEnd.quarter.value.quarter,
+        rangeStart.toGameMoment().clock.minutes,
+        rangeEnd.toGameMoment().period,
         rangeEnd.quarter.value.displayName,
-        rangeEnd.effectiveMinute()
+        rangeEnd.toGameMoment().clock.minutes
     ).serializeToMap()
 }
 

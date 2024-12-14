@@ -47,6 +47,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.assaf.basketclock.conditions.ConditionsDialog
+import com.assaf.basketclock.data.AppDatabase
+import com.assaf.basketclock.data.Condition
 import com.assaf.basketclock.ui.theme.CardBackground
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -134,6 +136,7 @@ fun GameDataSection(gameData: GameData){
                     Text(text = "FINAL", fontWeight = FontWeight.Bold)
                 }
                 2 -> {
+                    // TODO use the period and game clock directly here when its not a break.
                     Text(text = gameData.gameStatusText.trim(), fontWeight = FontWeight.Bold)
                 }
                 else -> {

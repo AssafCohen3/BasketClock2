@@ -5,6 +5,9 @@ import android.content.Context
 import androidx.core.app.NotificationManagerCompat
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.util.Date
 
@@ -39,4 +42,12 @@ fun canPostNotifications(context: Context): Boolean{
 
 fun getESTDate(date: ZonedDateTime): Date{
     return Date.from(date.withZoneSameInstant(java.time.ZoneId.of("EST")).toInstant())
+}
+
+fun systemSecondsToLocalDateTime(milliSeconds: Long): LocalDateTime{
+    val localDateTime = LocalDateTime.ofInstant(
+        Instant.ofEpochSecond(milliSeconds / 1000),
+        ZoneId.systemDefault()
+    )
+    return localDateTime
 }

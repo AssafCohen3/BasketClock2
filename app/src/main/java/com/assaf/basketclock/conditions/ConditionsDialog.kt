@@ -43,8 +43,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.assaf.basketclock.AppDatabase
-import com.assaf.basketclock.Condition
+import com.assaf.basketclock.data.AppDatabase
+import com.assaf.basketclock.data.Condition
 import com.assaf.basketclock.GameData
 import com.assaf.basketclock.R
 import com.assaf.basketclock.ui.theme.BackgroundDark

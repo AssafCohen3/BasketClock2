@@ -66,7 +66,18 @@ object ClockSerializer : KSerializer<Clock> {
     }
 
     override fun deserialize(decoder: Decoder): Clock {
-        val string = decoder.decodeString()
-        return Clock(string.substring(2, 4).toInt(), string.substring(5, 10).toDouble())
+        val string = decoder.decodeString().trim()
+        if (string == ""){
+            return Clock(0, .0)
+        }
+        else if(string.length > 10){
+            // "PT06M48.88S" Format
+            return Clock(string.substring(2, 4).toInt(), string.substring(5, 10).toDouble())
+        }
+        else{
+            // "8:36" format.
+            val splited = string.split(":")
+            return Clock(splited[0].trim().toInt(), splited[1].trim().toDouble())
+        }
     }
 }

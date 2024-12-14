@@ -10,6 +10,7 @@ const val GAME_HALFTIME_MINUTES_DURATION = 15
 const val PERIOD_BREAK_MINUTES_DURATION = 2
 
 // TODO maybe make this a function or something
+//  This fucks up close to halftime for example.
 const val POSSESSION_ESTIMATED_TIME = 15
 
 suspend fun calculateDifferenceConditionNextRelevantTime(game: ScheduledGameWithConditions, condition: DifferenceConditionData): Long{
@@ -93,7 +94,11 @@ suspend fun calculateGameNextRelevantTime(scheduledGameWithConditions: Scheduled
         nextRelevantTime = max(nextRelevantTime, conditionNextRelevantTime)
     }
 
-    return nextRelevantTime
+    if (nextRelevantTime <= 0){
+        return nextRelevantTime
+    }
+
+    return System.currentTimeMillis() + nextRelevantTime
 }
 
 suspend fun calculateNextGameActiveTime(game: ScheduledGameWithConditions): Long{

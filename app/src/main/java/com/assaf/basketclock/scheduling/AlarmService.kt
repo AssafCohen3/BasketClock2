@@ -13,13 +13,17 @@ import android.os.Bundle
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
-import com.assaf.basketclock.AppDatabase
+import com.assaf.basketclock.data.AppDatabase
 import com.assaf.basketclock.GameData
-import com.assaf.basketclock.GameWithConditions
 import com.assaf.basketclock.PBPGame
 import com.assaf.basketclock.R
+import com.assaf.basketclock.data.Session
+import com.assaf.basketclock.data.SessionGameStatus
+import com.assaf.basketclock.data.SessionGameWithConditions
+import com.assaf.basketclock.data.SessionStatus
 import com.assaf.basketclock.fetchPBPData
 import com.assaf.basketclock.fetchScoreBoardData
+import com.assaf.basketclock.systemSecondsToLocalDateTime
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -27,10 +31,9 @@ import timber.log.Timber
 import java.io.IOException
 import kotlin.math.max
 import kotlin.uuid.ExperimentalUuidApi
-import kotlin.uuid.Uuid
 
 data class ScheduledGameWithConditions(
-    val gameWithConditions: GameWithConditions,
+    val gameWithConditions: SessionGameWithConditions,
     val gameData: GameData,
     var nextRelevantTime: Long?,
     var pbpData: PBPGame? = null
@@ -43,17 +46,11 @@ data class ScheduledGameWithConditions(
     }
 }
 
-data class SessionDetails(
-    val sessionId: String,
-    val failsCount: Int,
-)
-
 class AlarmService: Service() {
     private val channelId = "AlarmServiceChannel"
     private val notificationId = 1
-    private lateinit var currentSession: SessionDetails
+    private lateinit var currentSession: Session
     companion object{
-        private const val INTENT_FAILS_KEY: String = "fails"
         private const val INTENT_SESSION_ID_KEY: String = "sessionId"
 
         private var isRunning = false
@@ -82,11 +79,6 @@ class AlarmService: Service() {
     ): Int {
         Timber.d("Starting service...")
 
-        currentSession = SessionDetails(
-            intent?.getStringExtra(INTENT_SESSION_ID_KEY) ?: Uuid.random().toString(),
-            intent?.getIntExtra(INTENT_FAILS_KEY, 0) ?: 0
-        )
-
         ServiceCompat.startForeground(
             this,
             notificationId,
@@ -95,22 +87,17 @@ class AlarmService: Service() {
         )
 
         CoroutineScope(Dispatchers.IO).launch {
-            try {
-                checkConditions()
-            }
-            catch (_: IOException){
-                if(currentSession.failsCount < 9){
-                    // TODO notify the user about the session failure.
-                }
-                else{
-                    scheduleNextFallbackCheck()
-                }
+            try{
+                serviceLogic(intent)
             }
             catch (e: Exception){
                 Timber.e(e)
                 // TODO show notification?
             }
-            stopSelf()
+            finally {
+                // TODO if returned without setting next check, update session status to finished.
+                stopSelf()
+            }
         }
 
         return START_STICKY
@@ -137,41 +124,84 @@ class AlarmService: Service() {
         manager?.createNotificationChannel(channel)
     }
 
-    private fun checkConditions() {
-        val coroutineScope = CoroutineScope(Dispatchers.IO)
-        coroutineScope.launch {
-            val relevantGames = collectRelevantGames()
-            if (relevantGames.isEmpty()){
-                return@launch
-            }
-            val gamesWithNextTime = relevantGames.map { this@AlarmService.calculateGameNextRelevantTime(it) }
+    private suspend fun serviceLogic(intent: Intent?){
+        if (intent != null && intent.getIntExtra(INTENT_SESSION_ID_KEY, -1) != -1){
+            currentSession = AppDatabase.getDatabase(this@AlarmService)
+                .getSessionRepository().getSession(intent.getIntExtra(INTENT_SESSION_ID_KEY, -1))
+        }
+        else{
+            currentSession = AppDatabase.getDatabase(this@AlarmService)
+                .getSessionRepository().newSession()
+        }
 
-            val gamesToAlarm = gamesWithNextTime.filter { it.nextRelevantTime!! == 0L }
-            val relevantGamesWithNextTime = gamesWithNextTime.filter { it.nextRelevantTime!! > 0L }
-            if (!relevantGamesWithNextTime.isEmpty()){
-                scheduleNextCheckPerGames(relevantGamesWithNextTime)
+        Timber.d("Session: $currentSession")
+
+        if (currentSession.status == SessionStatus.KILLED){
+            Timber.d("Killing...")
+            return
+        }
+
+        try {
+            checkConditions()
+        }
+        catch (_: IOException){
+            // Internet error.
+            if(currentSession.failsCount < 9){
+                // TODO notify the user about the session failure.
+                AppDatabase.getDatabase(this).getSessionRepository().updateSessionStatus(
+                    currentSession.sessionId,
+                    SessionStatus.KILLED
+                )
             }
-            if (!gamesToAlarm.isEmpty()){
-                startAlarm(gamesToAlarm)
+            else{
+                scheduleNextFallbackCheck()
             }
         }
     }
 
+    private suspend fun checkConditions() {
+        val relevantGames = collectRelevantGames()
+        Timber.d("Number of relevant games: ${relevantGames.size}")
+        if (relevantGames.isEmpty()){
+            return
+        }
+        val gamesWithNextTime = relevantGames.map { this@AlarmService.calculateGameNextRelevantTime(it) }
+
+        val gamesToAlarm = gamesWithNextTime.filter { it.nextRelevantTime!! == 0L }
+        val relevantGamesWithNextTime = gamesWithNextTime.filter { it.nextRelevantTime!! > 0L }
+        if (!relevantGamesWithNextTime.isEmpty()){
+            scheduleNextCheckPerGames(relevantGamesWithNextTime)
+        }
+        if (!gamesToAlarm.isEmpty()){
+            startAlarm(gamesToAlarm)
+        }
+    }
+
     private suspend fun collectRelevantGames(): List<ScheduledGameWithConditions> {
-        val gamesWithConditions =
-            AppDatabase.getDatabase(this@AlarmService).getConditionsRepository()
-                .getTodayGamesConditions()
+        val sessionGamesWithConditions =
+            AppDatabase.getDatabase(this@AlarmService).getSessionGamesRepository()
+                .getTodaySessionGamesWithConditions(currentSession.sessionId)
+
+        // Update the session games status to scheduling.
+        sessionGamesWithConditions.forEach {
+            it.sessionGameStatus = SessionGameStatus.SCHEDULING
+            it.scheduledTime = null
+        }
+        AppDatabase.getDatabase(this@AlarmService).getSessionGamesRepository()
+            .insertOrUpdateSessionGames(sessionGamesWithConditions.map { it.sessionGame })
 
         // TODO handle the case in which the scoreboard has not been updated yet.
         val todayScoreboard = fetchScoreBoardData()
 
-        return gamesWithConditions.mapNotNull{ gameWithConditions ->
+        return sessionGamesWithConditions.mapNotNull{ sessionGameWithConditions ->
             val gameData =
-                todayScoreboard.scoreboard.games.find { it.gameId == gameWithConditions.gameId }
+                todayScoreboard.scoreboard.games.find { it.gameId == sessionGameWithConditions.gameId }
             if (gameData != null) {
-                ScheduledGameWithConditions(gameWithConditions, gameData, null)
+                ScheduledGameWithConditions(sessionGameWithConditions, gameData, null)
             }
             else{
+                // TODO what to do here? the game is marked as scheduling but could not be found in the scoreboard.
+                //  maybe mark as could not schedule currently?
                 null
             }
         }
@@ -180,29 +210,47 @@ class AlarmService: Service() {
     private suspend fun calculateGameNextRelevantTime(scheduledGameWithConditions: ScheduledGameWithConditions): ScheduledGameWithConditions{
         return scheduledGameWithConditions.apply {
             nextRelevantTime = com.assaf.basketclock.conditions.calculateGameNextRelevantTime(scheduledGameWithConditions)
+
+            // Print the relevant time (system seconds) as local datetime
+            Timber.d("Game ${gameData.gameId}(${gameData.homeTeam.teamName} vs ${gameData.awayTeam.teamName}) " +
+                    "Next relevant time: ${systemSecondsToLocalDateTime(nextRelevantTime!!)}")
+
+            if (nextRelevantTime == -1L){
+                gameWithConditions.sessionGameStatus = SessionGameStatus.FINISHED
+            }
+            else if(nextRelevantTime == 0L){
+                gameWithConditions.sessionGameStatus = SessionGameStatus.ALARMED
+            }
+            else{
+                gameWithConditions.sessionGameStatus = SessionGameStatus.SCHEDULED
+                gameWithConditions.scheduledTime = nextRelevantTime
+            }
+            AppDatabase.getDatabase(this@AlarmService).getSessionGamesRepository().insertOrUpdateSessionGame(gameWithConditions.sessionGame)
         }
     }
 
-    private fun scheduleNextCheckPerGames(relevantGamesWithNextTime: List<ScheduledGameWithConditions>){
+    private suspend fun scheduleNextCheckPerGames(relevantGamesWithNextTime: List<ScheduledGameWithConditions>){
         val nextRelevantGame = relevantGamesWithNextTime.minByOrNull { it.nextRelevantTime!! }
         // TODO support in less than minute times.
         val nextRelevantTime = max(System.currentTimeMillis() + 1000 * 61, nextRelevantGame!!.nextRelevantTime!!)
         scheduleNextCheck(nextRelevantTime)
     }
 
-    private fun scheduleNextFallbackCheck(){
+    private suspend fun scheduleNextFallbackCheck(){
+        Timber.d("Fallback check.")
         scheduleNextCheck(calculateNextCheckByFails(), true)
     }
 
-    private fun scheduleNextCheck(nextRelevantTime: Long, fail: Boolean = false){
-        Timber.d("Scheduling next check at $nextRelevantTime")
+    private suspend fun scheduleNextCheck(nextRelevantTime: Long, fail: Boolean = false){
+        Timber.d("Scheduling next check to ${systemSecondsToLocalDateTime(nextRelevantTime)}")
+        if(fail){
+            AppDatabase.getDatabase(this).getSessionRepository().updateSessionFailCount(currentSession.sessionId, currentSession.failsCount + 1)
+        }
+
         val alarmManager = this.getSystemService(ALARM_SERVICE) as AlarmManager
 
         // Create an intent for the receiver
         val intent = Intent(this, SimpleServiceStarter::class.java)
-        if(fail){
-            intent.putExtra(INTENT_FAILS_KEY, currentSession.failsCount + 1)
-        }
         intent.putExtra(INTENT_SESSION_ID_KEY, currentSession.sessionId)
 
         val pendingIntent = PendingIntent.getBroadcast(
@@ -233,7 +281,11 @@ class AlarmService: Service() {
     }
 
     private fun startAlarm(alarmedGames: List<ScheduledGameWithConditions>){
-        // TODO implement
+        Timber.d("Alarming for ${alarmedGames.size} games!")
+        val serviceIntent = Intent(this, AlarmClockService::class.java)
+        serviceIntent.putExtra(AlarmClockService.SESSION_ID_INTENT_KEY, currentSession.sessionId)
+        serviceIntent.putStringArrayListExtra(AlarmClockService.GAME_IDS_INTENT_KEY, ArrayList(alarmedGames.map { it.gameData.gameId }))
+        this.startForegroundService(serviceIntent)
     }
 }
 
@@ -258,4 +310,10 @@ fun cancelAlarmServiceCurrentSession(context: Context){
         intent,
         PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_CANCEL_CURRENT or PendingIntent.FLAG_IMMUTABLE
     )
+    // TODO need to kill the service if its running. maybe save information about the session on the db so even if the service
+    //  succeeded to reschedule we will know at the next time it should not run.
+}
+
+fun isSessionActive(context: Context): Boolean{
+    return AlarmService.isRunning() || isSessionAlarmSet(context)
 }

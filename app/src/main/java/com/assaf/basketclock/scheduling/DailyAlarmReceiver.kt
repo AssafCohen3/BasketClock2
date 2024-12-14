@@ -5,7 +5,6 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import com.assaf.basketclock.AppDatabase
 import com.assaf.basketclock.canPostNotifications
 import com.assaf.basketclock.canScheduleExactAlarms
 import kotlinx.coroutines.CoroutineScope
@@ -34,12 +33,8 @@ class DailyAlarmReceiver : BroadcastReceiver() {
         }
 
         coroutineScope.launch{
-            val todayGames = AppDatabase.getDatabase(context).getConditionsRepository().getTodayGamesConditions()
-            Timber.d("Games count: ${todayGames.size}")
-            if (!todayGames.isEmpty()){
-                Timber.d("Firing verifying service...")
-                fireAlarmService(context)
-            }
+            Timber.d("Firing alarm service...")
+            fireAlarmService(context)
         }
     }
 }

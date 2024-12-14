@@ -64,11 +64,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
-import com.assaf.basketclock.scheduling.fireDailyReceiver
+import com.assaf.basketclock.scheduling.fireAlarmService
 import com.assaf.basketclock.ui.theme.BackgroundDark
 import com.assaf.basketclock.ui.theme.BasketClockTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -121,7 +122,8 @@ class MainActivity : ComponentActivity() {
                     calendarResponseWithTodayDate = calendarResponse
                     isLoading = false
                     hasError = false
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    Timber.e(e)
                     hasError = true
                     isLoading = false
                 }
@@ -218,7 +220,7 @@ fun MyAppBar(){
                     )
                     Spacer(modifier = Modifier.weight(1f))
                     IconButton(onClick = {
-                        fireDailyReceiver(currentContext)
+                        fireAlarmService(currentContext)
                     }) {
                         Image(
                             painter = painterResource(
