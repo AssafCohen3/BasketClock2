@@ -17,7 +17,7 @@ interface AbstractConditionData{
 
     fun conditionIcon(): Int
 
-    suspend fun calculateNextRelevantTime(game: ScheduledGameWithConditions): Long
+    suspend fun calculateMilliSecondsUntilNextRelevant(game: ScheduledGameWithConditions): Long
 }
 
 data class DifferenceConditionData(
@@ -36,8 +36,8 @@ data class DifferenceConditionData(
         return R.drawable.ic_difference_condition_icon_3
     }
 
-    override suspend fun calculateNextRelevantTime(game: ScheduledGameWithConditions): Long {
-        return calculateDifferenceConditionNextRelevantTime(game, this)
+    override suspend fun calculateMilliSecondsUntilNextRelevant(game: ScheduledGameWithConditions): Long {
+        return calculateDifferenceConditionTimeUntilRelevant(game, this)
     }
 }
 
@@ -57,8 +57,8 @@ data class LeaderConditionData(
         return R.drawable.ic_leader_condition_icon
     }
 
-    override suspend fun calculateNextRelevantTime(game: ScheduledGameWithConditions): Long {
-        return calculateLeaderConditionNextRelevantTime(game, this)
+    override suspend fun calculateMilliSecondsUntilNextRelevant(game: ScheduledGameWithConditions): Long {
+        return calculateLeaderConditionTimeUntilRelevant(game, this)
     }
 }
 
@@ -91,8 +91,8 @@ data class TimeConditionData(
         return R.drawable.ic_time_condition_icon
     }
 
-    override suspend fun calculateNextRelevantTime(game: ScheduledGameWithConditions): Long {
-        return calculateTimeConditionNextRelevantTime(game, this)
+    override suspend fun calculateMilliSecondsUntilNextRelevant(game: ScheduledGameWithConditions): Long {
+        return calculateTimeConditionTimeUntilRelevant(game, this)
     }
 }
 

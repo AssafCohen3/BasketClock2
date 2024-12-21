@@ -9,6 +9,7 @@ class Application: Application() {
         super.onCreate()
         Timber.plant(FileLoggingTree(this))
         Timber.d("Scheduling daily alarm from application...")
-        scheduleDailyAlarm(this)
+        // TODO currently only fire manually.
+//        scheduleDailyAlarm(this)
     }
 }

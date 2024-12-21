@@ -32,6 +32,16 @@ import java.io.IOException
 import kotlin.math.max
 import kotlin.uuid.ExperimentalUuidApi
 
+/*
+The alarm service flow:
+
+> Collect all games with conditions of today which has not been finished on the current session
+> Attach the real time game data from the current scoreboard to each game.
+> For each game calculate the next relevant time for check.
+> Alarm games that should be alarmed.
+> Schedule the next check to the closest next relevant time.
+*/
+
 data class ScheduledGameWithConditions(
     val gameWithConditions: SessionGameWithConditions,
     val gameData: GameData,
@@ -136,8 +146,8 @@ class AlarmService: Service() {
 
         Timber.d("Session: $currentSession")
 
-        if (currentSession.status == SessionStatus.KILLED){
-            Timber.d("Killing...")
+        if (currentSession.status != SessionStatus.RUNNING){
+            Timber.d("Session deactivated...")
             return
         }
 
@@ -150,7 +160,7 @@ class AlarmService: Service() {
                 // TODO notify the user about the session failure.
                 AppDatabase.getDatabase(this).getSessionRepository().updateSessionStatus(
                     currentSession.sessionId,
-                    SessionStatus.KILLED
+                    SessionStatus.FINISHED
                 )
             }
             else{
@@ -190,7 +200,8 @@ class AlarmService: Service() {
         AppDatabase.getDatabase(this@AlarmService).getSessionGamesRepository()
             .insertOrUpdateSessionGames(sessionGamesWithConditions.map { it.sessionGame })
 
-        // TODO handle the case in which the scoreboard has not been updated yet.
+        // TODO handle the case in which the scoreboard has not been updated yet to today.
+        //  In this case probably use the schedule.
         val todayScoreboard = fetchScoreBoardData()
 
         return sessionGamesWithConditions.mapNotNull{ sessionGameWithConditions ->
@@ -237,6 +248,8 @@ class AlarmService: Service() {
     }
 
     private suspend fun scheduleNextFallbackCheck(){
+        // TODO add a field to the sessions table with the next scheduled time and the reason for it.
+        //  this way the user will be able to know why we waiting the fallback time (an error happened)
         Timber.d("Fallback check.")
         scheduleNextCheck(calculateNextCheckByFails(), true)
     }
@@ -303,6 +316,24 @@ fun stopAlarmService(context: Context){
 }
 
 fun cancelAlarmServiceCurrentSession(context: Context){
+    if (isSessionActive(context)){
+        CoroutineScope(Dispatchers.IO).launch{
+            // There is a weird case here in which the AlarmService just started and not created
+            //  the new session in the DB yet before this function run.
+            // In this case the session will actually won't get killed (The session will get
+            //  created after this so it will still be marked as running).
+            val lastSession = AppDatabase.getDatabase(context).getSessionRepository().getLastSession()
+
+            // Only kill running sessions.
+            if (lastSession.status == SessionStatus.RUNNING){
+                AppDatabase.getDatabase(context).getSessionRepository().updateSessionStatus(
+                    lastSession.sessionId,
+                    SessionStatus.KILLED
+                )
+            }
+        }
+    }
+
     val intent = Intent(context, SimpleServiceStarter::class.java)
     PendingIntent.getBroadcast(
         context,
@@ -310,8 +341,6 @@ fun cancelAlarmServiceCurrentSession(context: Context){
         intent,
         PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_CANCEL_CURRENT or PendingIntent.FLAG_IMMUTABLE
     )
-    // TODO need to kill the service if its running. maybe save information about the session on the db so even if the service
-    //  succeeded to reschedule we will know at the next time it should not run.
 }
 
 fun isSessionActive(context: Context): Boolean{

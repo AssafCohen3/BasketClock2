@@ -64,11 +64,20 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
-import com.assaf.basketclock.scheduling.fireAlarmService
+import com.assaf.basketclock.conditions.ConditionType
+import com.assaf.basketclock.conditions.DifferenceConditionData
+import com.assaf.basketclock.conditions.TimeConditionData
+import com.assaf.basketclock.data.AppDatabase
+import com.assaf.basketclock.data.Condition
+import com.assaf.basketclock.scheduling.cancelAlarmServiceCurrentSession
 import com.assaf.basketclock.ui.theme.BackgroundDark
 import com.assaf.basketclock.ui.theme.BasketClockTheme
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import timber.log.Timber
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -185,7 +194,7 @@ class MainActivity : ComponentActivity() {
 
     fun openNotificationsSettingsActivity(){
         if (android.os.Build.VERSION.SDK_INT >= 33) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 101);
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 101)
         }
     }
 }
@@ -220,7 +229,7 @@ fun MyAppBar(){
                     )
                     Spacer(modifier = Modifier.weight(1f))
                     IconButton(onClick = {
-                        fireAlarmService(currentContext)
+                        debugSimulation(currentContext)
                     }) {
                         Image(
                             painter = painterResource(
@@ -396,5 +405,74 @@ fun ShowPermissionsDialog(
                 }
             }
         }
+    }
+}
+
+
+fun debugSimulation(context: Context){
+    CoroutineScope(Dispatchers.IO).launch{
+        // TODO won't work if current time is before 3am eastern.
+        // Must add android:usesCleartextTraffic="true" to application in the manifest
+
+        cancelAlarmServiceCurrentSession(context)
+
+        // Delete all today conditions.
+        val todayConditions = AppDatabase.getDatabase(context).getConditionsRepository().getTodayConditions()
+        for(condition in todayConditions){
+            AppDatabase.getDatabase(context).getConditionsRepository().deleteCondition(condition)
+        }
+
+        // Get the simulated fake game.
+        val client = OkHttpClient()
+        val request = Request.Builder()
+            .url("$API_BASE_URL/game_fake_data")
+            .build()
+        val response = client.newCall(request).execute().body?.string()
+        val gameData = Json { ignoreUnknownKeys = true}.decodeFromString<GameData>(response as String)
+
+        // Delete all conditions of the game.
+        val gameConditions = AppDatabase.getDatabase(context).getConditionsRepository().getGameConditionsSync(gameData.gameId)
+        for(condition in gameConditions){
+            AppDatabase.getDatabase(context).getConditionsRepository().deleteCondition(condition)
+        }
+
+        // Insert new conditions for the game.
+        // Conditions: Game is after 2nd period and dif is <= 5
+        AppDatabase.getDatabase(context).getConditionsRepository().insertCondition(Condition(
+            gameId = gameData.gameId,
+            gameDateTime = gameData.realGameDateTimeUTC,
+            homeTeamId = gameData.homeTeam.teamId,
+            homeTeamName = gameData.homeTeam.teamName,
+            homeTeamTricode = gameData.homeTeam.teamTricode,
+            awayTeamId = gameData.awayTeam.teamId,
+            awayTeamName = gameData.awayTeam.teamName,
+            awayTeamTricode = gameData.awayTeam.teamTricode,
+            conditionType = ConditionType.TIME,
+            conditionData = TimeConditionData(
+                startQuarter = 2,
+                startQuarterDisplay = "Q2",
+                startMinute = 12,
+                endQuarter = 5,
+                endQuarterDisplay = "OT",
+                endMinute = 0
+            ).serializeToMap()
+        ))
+        AppDatabase.getDatabase(context).getConditionsRepository().insertCondition(Condition(
+            gameId = gameData.gameId,
+            gameDateTime = gameData.realGameDateTimeUTC,
+            homeTeamId = gameData.homeTeam.teamId,
+            homeTeamName = gameData.homeTeam.teamName,
+            homeTeamTricode = gameData.homeTeam.teamTricode,
+            awayTeamId = gameData.awayTeam.teamId,
+            awayTeamName = gameData.awayTeam.teamName,
+            awayTeamTricode = gameData.awayTeam.teamTricode,
+            conditionType = ConditionType.TIME,
+            conditionData = DifferenceConditionData(
+                sign = "≤",
+                difference = 5
+            ).serializeToMap()
+        ))
+
+//        fireAlarmService(context)
     }
 }

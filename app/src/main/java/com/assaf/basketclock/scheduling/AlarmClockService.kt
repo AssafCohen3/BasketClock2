@@ -13,6 +13,7 @@ import androidx.core.app.NotificationCompat
 import com.assaf.basketclock.R
 import com.assaf.basketclock.data.AppDatabase
 import com.assaf.basketclock.data.ConditionGame
+import com.assaf.basketclock.data.SessionStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -48,20 +49,31 @@ class AlarmClockService: Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // Start playing the alarm sound
-        mediaPlayer.start()
+
 
         val scope = CoroutineScope(Dispatchers.IO)
         scope.launch{
+            // Ensure the session has not been killed.
+            val session = AppDatabase.getDatabase(this@AlarmClockService).getSessionRepository()
+                .getSession(intent!!.getIntExtra(SESSION_ID_INTENT_KEY, -1))
+            if (session.status == SessionStatus.KILLED){
+                this@AlarmClockService.stopSelf()
+                return@launch
+            }
+
+            // Start playing the alarm sound
+            mediaPlayer.start()
+
             val games = AppDatabase.getDatabase(this@AlarmClockService).getConditionsRepository()
-                .getGames(intent!!.getStringArrayListExtra(GAME_IDS_INTENT_KEY)!!.toList())
+                .getGames(intent.getStringArrayListExtra(GAME_IDS_INTENT_KEY)!!.toList())
             // Show the notification
             showNotification(games)
+
+            // Schedule auto-stop after 1 minute
+            // TODO decide time.
+            stopAlarmHandler.postDelayed(stopRunnable, 60_000) // 60 seconds
         }
 
-        // Schedule auto-stop after 1 minute
-        // TODO decide time.
-        stopAlarmHandler.postDelayed(stopRunnable, 60_000) // 60 seconds
 
         return START_STICKY
     }

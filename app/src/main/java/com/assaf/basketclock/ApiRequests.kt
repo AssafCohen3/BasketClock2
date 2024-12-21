@@ -10,7 +10,7 @@ import java.io.IOException
 suspend fun fetchPBPData(gameId: String): PBPResponse = withContext(Dispatchers.IO){
     val client = OkHttpClient()
     val request = Request.Builder()
-        .url("https://cdn.nba.com/static/json/liveData/playbyplay/playbyplay_$gameId.json")
+        .url("$API_BASE_URL/static/json/liveData/playbyplay/playbyplay_$gameId.json")
         .build()
 
     val response = client.newCall(request).execute()
@@ -27,7 +27,7 @@ suspend fun fetchPBPData(gameId: String): PBPResponse = withContext(Dispatchers.
 suspend fun fetchScoreBoardData(): ScoreboardResponse = withContext(Dispatchers.IO){
     val client = OkHttpClient()
     val request = Request.Builder()
-        .url("https://cdn.nba.com/static/json/liveData/scoreboard/todaysScoreboard_00.json")
+        .url("$API_BASE_URL/static/json/liveData/scoreboard/todaysScoreboard_00.json")
         .build()
 
     val response = client.newCall(request).execute()
@@ -55,7 +55,7 @@ fun filterCalendarData(calendarResponse: CalendarResponse): CalendarResponse{
 suspend fun fetchCalendarData(): CalendarResponse = withContext(Dispatchers.IO){
     val client = OkHttpClient()
     val request = Request.Builder()
-        .url("https://cdn.nba.com/static/json/staticData/scheduleLeagueV2_18.json")
+        .url("$API_BASE_URL/static/json/staticData/scheduleLeagueV2_18.json")
         .build()
 
     val response = client.newCall(request).execute()

@@ -32,3 +32,5 @@ val LOGOS_RESOURCES: Map<Int, Int> = mapOf(
     1610612758 to R.drawable.logo_1610612758,
     1610612757 to R.drawable.logo_1610612757,
 )
+
+const val API_BASE_URL = "https://cdn.nba.com"

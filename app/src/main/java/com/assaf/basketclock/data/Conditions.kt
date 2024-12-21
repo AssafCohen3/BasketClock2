@@ -69,6 +69,9 @@ interface ConditionDao {
     suspend fun deleteCondition(condition: Condition)
 
     @Query("SELECT * FROM Conditions WHERE gameId = :gameId")
+    suspend fun getGameConditionsSync(gameId: String): List<Condition>
+
+    @Query("SELECT * FROM Conditions WHERE gameId = :gameId")
     fun getGameConditions(gameId: String): Flow<List<Condition>>
 
     @Query("""
@@ -91,6 +94,10 @@ class ConditionsRepository(private val conditionDao: ConditionDao) {
 
     suspend fun deleteCondition(condition: Condition) {
         conditionDao.deleteCondition(condition)
+    }
+
+    suspend fun getGameConditionsSync(gameId: String): List<Condition> {
+        return conditionDao.getGameConditionsSync(gameId)
     }
 
     fun getGameConditions(gameId: String): Flow<List<Condition>> {

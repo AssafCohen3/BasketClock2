@@ -9,6 +9,7 @@ import androidx.room.Update
 
 enum class SessionStatus{
     RUNNING,
+    FINISHED,
     KILLED
 }
 

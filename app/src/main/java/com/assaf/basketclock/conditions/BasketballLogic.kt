@@ -13,8 +13,8 @@ const val PERIOD_BREAK_MINUTES_DURATION = 2
 //  This fucks up close to halftime for example.
 const val POSSESSION_ESTIMATED_TIME = 15
 
-suspend fun calculateDifferenceConditionNextRelevantTime(game: ScheduledGameWithConditions, condition: DifferenceConditionData): Long{
-    val secondsUntilActive = calculateNextGameActiveTime(game)
+suspend fun calculateDifferenceConditionTimeUntilRelevant(game: ScheduledGameWithConditions, condition: DifferenceConditionData): Long{
+    val secondsUntilActive = calculateSecondsUntilGameActive(game)
     val pointsToTargetDiff: Int
     if (condition.sign == ">"){
         pointsToTargetDiff = max(0, condition.difference + 1 - game.gameData.currentDiff)
@@ -38,7 +38,7 @@ suspend fun calculateDifferenceConditionNextRelevantTime(game: ScheduledGameWith
     return (secondsUntilActive + secondsToTargetMoment.toInt()) * 1000
 }
 
-suspend fun calculateTimeConditionNextRelevantTime(game: ScheduledGameWithConditions, condition: TimeConditionData): Long{
+suspend fun calculateTimeConditionTimeUntilRelevant(game: ScheduledGameWithConditions, condition: TimeConditionData): Long{
     if (game.gameData.gameMoment!!.toTotalSeconds() > condition.endMoment.toTotalSeconds()){
         return -1
     }
@@ -50,10 +50,10 @@ suspend fun calculateTimeConditionNextRelevantTime(game: ScheduledGameWithCondit
 
     // Either we at break time and expecting the game to renew (and change period) or we need to
     //  wait more time until the clocks match.
-    return (calculateNextGameActiveTime(game) + secondsBetweenClocks(game.gameData.gameMoment!!, condition.startMoment).toInt()) * 1000
+    return (calculateSecondsUntilGameActive(game) + secondsBetweenClocks(game.gameData.gameMoment!!, condition.startMoment).toInt()) * 1000
 }
 
-suspend fun calculateLeaderConditionNextRelevantTime(game: ScheduledGameWithConditions, condition: LeaderConditionData): Long{
+suspend fun calculateLeaderConditionTimeUntilRelevant(game: ScheduledGameWithConditions, condition: LeaderConditionData): Long{
     val pointsToTargetDiff: Int
     if (condition.leaderTeamId == game.gameData.homeTeam.teamId){
         pointsToTargetDiff = max(0, game.gameData.homeTeam.score - game.gameData.awayTeam.score + 1)
@@ -75,7 +75,7 @@ suspend fun calculateLeaderConditionNextRelevantTime(game: ScheduledGameWithCond
     val secondsToTargetMoment = secondsBetweenClocks(game.gameData.gameMoment!!, targetMoment)
 
     // Will zero out if the game is active and the target diff has been reached.
-    return (calculateNextGameActiveTime(game) + secondsToTargetMoment.toInt()) * 1000
+    return (calculateSecondsUntilGameActive(game) + secondsToTargetMoment.toInt()) * 1000
 }
 
 suspend fun calculateGameNextRelevantTime(scheduledGameWithConditions: ScheduledGameWithConditions): Long{
@@ -84,24 +84,24 @@ suspend fun calculateGameNextRelevantTime(scheduledGameWithConditions: Scheduled
         return -1
     }
 
-    var nextRelevantTime = -1L
+    var timeUntilRelevant = -1L
     for (condition in scheduledGameWithConditions.gameWithConditions.conditions){
-        val conditionNextRelevantTime = condition.calculateNextRelevantTime(scheduledGameWithConditions)
-        if (conditionNextRelevantTime == -1L){
+        val conditionTimeUntilRelevant = condition.calculateMilliSecondsUntilNextRelevant(scheduledGameWithConditions)
+        if (conditionTimeUntilRelevant == -1L){
             // Conditions will never happen.
             return -1
         }
-        nextRelevantTime = max(nextRelevantTime, conditionNextRelevantTime)
+        timeUntilRelevant = max(timeUntilRelevant, conditionTimeUntilRelevant)
     }
 
-    if (nextRelevantTime <= 0){
-        return nextRelevantTime
+    if (timeUntilRelevant <= 0){
+        return timeUntilRelevant
     }
 
-    return System.currentTimeMillis() + nextRelevantTime
+    return System.currentTimeMillis() + timeUntilRelevant
 }
 
-suspend fun calculateNextGameActiveTime(game: ScheduledGameWithConditions): Long{
+suspend fun calculateSecondsUntilGameActive(game: ScheduledGameWithConditions): Long{
     val gameData = game.gameData
     if (gameData.gameStatus > 2){
         // Game ended.
@@ -110,7 +110,7 @@ suspend fun calculateNextGameActiveTime(game: ScheduledGameWithConditions): Long
 
     if (gameData.gameStatus == 1){
         // Time until 10 minutes after official game time.
-        return gameData.realGameDateTimeUTC.toEpochSecond() + 60 * GAME_START_MINUTES_DELAY
+        return max(0 ,gameData.realGameDateTimeUTC.toEpochSecond() + 60 * GAME_START_MINUTES_DELAY - (System.currentTimeMillis() / 1000))
     }
 
     if (gameData.period == 2 && gameData.gameClock!!.minutes == 0 && gameData.gameClock.seconds == 0.0){
@@ -120,7 +120,7 @@ suspend fun calculateNextGameActiveTime(game: ScheduledGameWithConditions): Long
         val lastAction = sortedActions.last()
         // Last play is indeed the second period end.
         if (lastAction.actionType == "period" && lastAction.subType == "end"){
-            return lastAction.timeActual.toEpochSecond() + 60 * GAME_HALFTIME_MINUTES_DURATION
+            return max(0, lastAction.timeActual.toEpochSecond() + 60 * GAME_HALFTIME_MINUTES_DURATION - (System.currentTimeMillis() / 1000))
         }
     }
 
